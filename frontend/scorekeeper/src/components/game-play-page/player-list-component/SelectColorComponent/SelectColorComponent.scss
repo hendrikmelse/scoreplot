@@ -1,0 +1,91 @@
+@use "../../../../Colors.scss" as *;
+
+.color-select-background {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background-color: #00000080;
+}
+
+.color-select-content-nub {
+  z-index: 4;
+  background-color: $gray-1;
+  height: 16px;
+  width: 16px;
+  transform: rotate(45deg);
+  border-left: 1px solid $gray-4;
+  border-bottom: 1px solid $gray-4;
+  border-bottom-left-radius: 4px;
+}
+
+.color-select-content {
+  width: fit-content;
+  background-color: $gray-1;
+  border: 1px solid $gray-4;
+  border-radius: 16px;
+  padding: 20px 28px;
+  display: flex;
+  // align-items: center;
+  gap: 12px;
+
+  .color-card {
+    height: 60px;
+    width: 60px;
+    border-radius: 6px;
+    border: 4px solid transparent;
+    cursor: pointer;
+    
+    &.selected {
+      outline: 4px solid $light-elements;
+    }
+  }
+  
+  .default-colors-section {
+    display: flex;
+    gap: 20px;
+  }
+
+  .color-section-divider {
+    margin: -8px 10px;
+    width: 3px;
+    background-color: $gray-4;
+  }
+
+  .custom-color-section {
+    display: flex;
+    gap: 10px;
+
+    .color-sliders {
+      display: flex;
+      flex-direction: column;
+
+      .color-slider {
+        appearance: none;
+        width: 200px;
+        height: 16px;
+        border-top: 3px solid $gray-1;
+        border-bottom: 3px solid $gray-1;
+
+        &#custom-color-r {
+          background-image: linear-gradient(to right, #404040, #ff0000);
+        }
+        &#custom-color-g {
+          background-image: linear-gradient(to right, #404040, #00ff00);
+        }
+        &#custom-color-b {
+          background-image: linear-gradient(to right, #404040, #0000ff);
+        }
+      }
+
+      .color-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 8px;
+        height: 16px;
+        background-color: $gray-4;
+        border-radius: 4px;
+        border: 1px solid $gray-5;
+      }
+    }
+  }
+}

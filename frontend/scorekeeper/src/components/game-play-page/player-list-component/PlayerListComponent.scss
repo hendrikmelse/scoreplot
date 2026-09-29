@@ -1,0 +1,185 @@
+@use '../../../Colors.scss' as *;
+
+.round-buttons {
+  margin: 30px 40px 20px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  button {
+    width: 80px;
+    background-color: $gray-2;
+    border: 1px solid $gray-4;
+    border-radius: 10px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $gray-3;
+    }
+
+    span {
+      color: $light-elements;
+    }
+
+    &.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
+  .round-label {
+    padding-bottom: 3px;
+    color: $light-elements;
+    font-size: 18pt;
+    font-weight: bold;
+  }
+}
+
+.player-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .player-placeholder {
+    height: 32px;
+  }
+
+  .player {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    cursor: pointer;
+    transition: background-color 200ms ease, transform 150ms ease;
+
+    &.dragging {
+      z-index: 1;
+      background-color: $gray-2;
+      box-shadow: 0 0 6px 0 black;
+      transition: none;
+    }
+    
+    &:not(.editing):not(.selected):hover {
+      background-color: $gray-2;
+      transition: background-color 40ms ease;
+    }
+
+    &.selected {
+      background-color: $gray-4;
+    }
+
+    .spacer-left {
+      width: 10px;
+    }
+
+    .drag-handle {
+      color: $light-elements;
+      cursor: grab;
+      overflow: hidden;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      transition: width 60ms ease;
+
+      &.hidden {
+        width: 0;
+      }
+    }
+
+    &.dragging .drag-handle {
+      cursor: grabbing;
+    }
+    
+    .player-color {
+      width: 32px;
+      border-radius: 2px;
+    }
+
+    .edit-name-button {
+      color: $light-elements;
+      cursor: pointer;
+      overflow: hidden;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: right;
+      transition: width 60ms ease;
+
+      &.hidden {
+        width: 0;
+      }
+    }
+
+    .player-name {
+      color: $light-elements;
+      font-size: 18pt;
+      font-weight: bold;
+      flex: 1;
+    }
+
+    .player-name-input {
+      background-color: transparent;
+      border: none;
+      color: $light-elements;
+      font-size: 18pt;
+      width: 181px;
+    }
+
+    .score {
+      color: $light-elements;
+      font-size: 18pt;
+      font-weight: bold;
+      overflow: hidden;
+      display: flex;  
+      align-items: center;
+      transition: width 60ms ease;
+
+      &.hidden {
+        width: 0;
+      }
+    }
+
+    .delete-button {
+      color: $light-elements;
+      cursor: pointer;
+      overflow: hidden;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      transition: width 60ms ease;
+
+      &.hidden {
+        width: 0;
+      }
+    }
+
+    .spacer-right {
+      width: 20px;
+    }
+  }
+}
+
+.add-player-row {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  transition: opacity 60ms ease;
+
+  &.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .add-player-button {
+    width: 80px;
+    background-color: $gray-2;
+    border: 1px solid $gray-4;
+    border-radius: 8px;
+    color: $light-elements;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $gray-3;
+    }
+  }
+}

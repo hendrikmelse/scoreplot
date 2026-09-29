@@ -1,0 +1,1 @@
+To run app, go to frontend/scorekeeper/ and run `npm start`

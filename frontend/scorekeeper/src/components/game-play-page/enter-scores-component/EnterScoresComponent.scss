@@ -1,0 +1,100 @@
+@use '../../../Colors.scss' as *;
+
+.keypad {
+  height: 100%;
+  width: 100%;
+  padding: 60px;
+  display: grid;
+  grid-template-columns: 20px 1fr 20px 1fr 20px 1fr 20px 1fr 20px;
+  grid-template-rows: 20px 80px 20px 1fr 20px 1fr 20px 1fr 20px 1fr 20px;
+
+  .key {
+    font-size: 36pt;
+    font-weight: bold;
+    font-family: monospace;
+    background-color: $gray-2;
+    border: 1px solid $gray-4;
+    border-radius: 16px;
+    color: $light-elements;
+
+    &:hover {
+      cursor: pointer;
+      background-color: $gray-3;
+    }
+
+    &.large-icon > span {
+      font-size: 40px;
+    }
+  }
+
+  .score-input {
+    grid-column: 2 / 7;
+    grid-row: 2 / 3;
+    margin: 0 20px;
+    font-size: 34pt;
+    font-weight: bold;
+    font-family: monospace;
+    background-color: $gray-2;
+    border: 1px solid $gray-4;
+    border-radius: 40px;
+    color: $light-elements;
+    text-align: center;
+    outline: none;
+  }
+  .key-7 {
+    grid-column: 2 / 3;
+    grid-row: 4 / 5;
+  }
+  .key-8 {
+    grid-column: 4 / 5;
+    grid-row: 4 / 5;
+  }
+  .key-9 {
+    grid-column: 6 / 7;
+    grid-row: 4 / 5;
+  }
+  .key-4 {
+    grid-column: 2 / 3;
+    grid-row: 6 / 7;
+  }
+  .key-5 {
+    grid-column: 4 / 5;
+    grid-row: 6 / 7;
+  }
+  .key-6 {
+    grid-column: 6 / 7;
+    grid-row: 6 / 7;
+  }
+  .key-1 {
+    grid-column: 2 / 3;
+    grid-row: 8 / 9;
+  }
+  .key-2 {
+    grid-column: 4 / 5;
+    grid-row: 8 / 9;
+  }
+  .key-3 {
+    grid-column: 6 / 7;
+    grid-row: 8 / 9;
+  }
+  .key-negate {
+    grid-column: 2 / 3;
+    grid-row: 10 / 11;
+  }
+  .key-0 {
+    grid-column: 4 / 5;
+    grid-row: 10 / 11;
+  }
+  .key-point {
+    grid-column: 6 / 7;
+    grid-row: 10 / 11;
+  }
+  .key-backspace {
+    grid-column: 8 / 9;
+    grid-row: 4 / 7;
+  }
+  .key-enter {
+    grid-column: 8 / 9;
+    grid-row: 8 / 11;
+  }
+}

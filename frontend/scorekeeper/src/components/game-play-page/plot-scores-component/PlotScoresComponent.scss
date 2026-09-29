@@ -1,0 +1,19 @@
+
+.plot-scores-content {
+    height: 100%;
+    width: 100%;
+    padding: 20px;
+}
+
+.plot-area {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: #0a0a0a;
+}
+
+.plot-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
