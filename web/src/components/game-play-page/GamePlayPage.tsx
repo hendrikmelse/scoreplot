@@ -24,7 +24,8 @@ export function GamePlayPage() {
   const { game, updateGame } = useGame();
   const [currentContent, setCurrentContent] = useState<Content>("keypad");
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
-  const [currentRound, setCurrentRound] = useState(1);
+  // Continuing a game picks up at its latest round; a new game starts at round 1
+  const [currentRound, setCurrentRound] = useState(() => Math.max(1, lastRound(game)));
   const [editing, setEditing] = useState(startInEditMode);
   // A new game starts with its name selected, ready to be typed over (only the first time it shows)
   const selectGameName = useRef(startInEditMode);

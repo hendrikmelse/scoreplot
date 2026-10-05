@@ -25,6 +25,38 @@ async function addSecondPlayer(user: User, container: HTMLElement) {
   await user.click(container.querySelector(".button-edit")!);
 }
 
+describe("demo game", () => {
+  it("is only loaded when the URL asks for it", () => {
+    renderApp("/");
+    expect(screen.queryByText("Friday Night Rummy")).toBeNull();
+  });
+
+  it("loads with ?demo, and plays from its latest round", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/?demo");
+
+    expect(screen.getByText("Friday Night Rummy")).toBeTruthy();
+    await user.click(screen.getByText("Continue Game"));
+
+    expect(container.querySelectorAll(".player")).toHaveLength(4);
+    expect(container.querySelector(".round-label")!.textContent).toBe("Round 8");
+    expect(shownScores(container)).toEqual(["28", "0", "-8", "5"]);
+  });
+
+  it("shows the whole game in the score table", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/?demo");
+
+    await user.click(screen.getByText("Continue Game"));
+    await user.click(container.querySelectorAll(".buttons-section button")[2]!);
+
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(9); // Start + 8 rounds
+    expect(
+      Array.from(container.querySelectorAll(".total-cell")).map((el) => el.textContent),
+    ).toEqual(["75", "85", "83", "93"]);
+  });
+});
+
 describe("title page", () => {
   it("starts a new game with one player, in edit mode", async () => {
     const user = userEvent.setup();
