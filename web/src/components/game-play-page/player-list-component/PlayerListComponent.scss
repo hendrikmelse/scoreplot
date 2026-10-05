@@ -2,10 +2,13 @@
 
 $row-height: 40px; // Tall enough to tap
 $player-gap: 4px;
+// Empty space above the first player and below the last, inside the scrolling list. A player being
+// dragged can be pulled a little past either end, and the list would cut it off without this.
+$drag-room: 10px;
 
 .round-buttons {
   flex: none;
-  margin: 30px 40px 20px 20px;
+  margin: 30px 40px (20px - $drag-room) 20px; // The room above the list makes up the rest of the gap
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -44,6 +47,8 @@ $player-gap: 4px;
   position: relative;
   flex: 1; // Takes the room between the round buttons and the add player button...
   min-height: 0;
+  padding: $drag-room 0;
+  scroll-padding: $drag-room 0; // So that scrolling a player into view leaves the room around them
   overflow-x: hidden;
   overflow-y: auto; // ...and scrolls when there are more players than fit
   scrollbar-width: thin;
@@ -194,7 +199,7 @@ $player-gap: 4px;
 
 .add-player-row {
   flex: none; // Always in view, below the scrolling list
-  margin: 12px 0 16px;
+  margin: (12px - $drag-room) 0 16px; // The room below the list makes up the rest of the gap
   display: flex;
   justify-content: center;
   transition: opacity 60ms ease;
