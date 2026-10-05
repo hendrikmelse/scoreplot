@@ -143,13 +143,6 @@ export function GamePlayPage() {
     setCurrentRound(Math.max(0, currentRound - 1));
   }
 
-  // Score selected from the table view
-  function onScoreSelected(playerId: string, round: number) {
-    changeContent("keypad");
-    setSelectedPlayerId(playerId);
-    setCurrentRound(round);
-  }
-
   return (
     <div className="background game-play-background">
       <div className="left-section">
@@ -249,7 +242,7 @@ export function GamePlayPage() {
         {currentContent === "plot" && (
           <PlotScoresComponent highlightedPlayerId={highlightedPlayerId} />
         )}
-        {currentContent === "table" && <ScoreTableComponent onScoreSelected={onScoreSelected} />}
+        {currentContent === "table" && <ScoreTableComponent />}
       </div>
     </div>
   );

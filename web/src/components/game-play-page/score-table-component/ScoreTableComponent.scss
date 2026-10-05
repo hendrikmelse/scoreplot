@@ -11,6 +11,15 @@ $negative: #f08a8a;
   display: flex;
   flex-direction: column;
 
+  // Says that the scores can be changed, as nothing about them looks like it
+  .score-table-hint {
+    flex: none;
+    padding: 10px 0 0;
+    color: rgba($light-elements, 0.5);
+    font-size: 13px;
+    text-align: center;
+  }
+
   &.score-table-empty {
     align-items: center;
     justify-content: center;
@@ -104,7 +113,7 @@ $negative: #f08a8a;
 
     .score-cell,
     .total-cell {
-      padding: 8px 10px;
+      padding: 0;
       text-align: center;
       font-family: monospace;
       font-size: 18pt;
@@ -116,12 +125,50 @@ $negative: #f08a8a;
       }
     }
 
+    .total-cell {
+      padding: 8px 10px;
+    }
+
     .score-cell {
-      cursor: pointer;
       transition: background-color 40ms ease;
 
-      &:hover {
+      &:hover:not(.editing) {
         background-color: $gray-4;
+      }
+
+      // The number is a button that fills the whole cell, so that all of it can be pressed
+      .score-button {
+        display: block;
+        width: 100%;
+        padding: 8px 10px;
+        background: none;
+        border: 0;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+
+        &:focus-visible {
+          outline: 2px solid $light-elements;
+          outline-offset: -2px;
+        }
+      }
+
+      // The box that a score is changed in, filling its cell
+      .score-input-box {
+        display: block;
+        width: calc(100% - 12px);
+        min-width: 0;
+        margin: 3px 6px;
+        padding: 4px 6px;
+        background-color: $gray-3;
+        border: 1px solid $light-elements;
+        border-radius: 8px;
+        color: $light-elements;
+        font: inherit;
+        text-align: center;
+        outline: none;
       }
     }
 

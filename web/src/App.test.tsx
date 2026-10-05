@@ -708,14 +708,74 @@ describe("game play page", () => {
       expect(headers[0]!.style.borderBottomColor).not.toBe(headers[1]!.style.borderBottomColor);
     });
 
-    it("jumps to a score on the keypad when its cell is clicked", async () => {
-      const { user, container } = await playTwoRounds();
+    describe("editing a score", () => {
+      const cellButton = (container: HTMLElement, row: number, player: number) =>
+        container.querySelectorAll<HTMLElement>(
+          `tbody tr:nth-child(${row}) .score-cell .score-button`,
+        )[player]!;
+      const totals = (container: HTMLElement) =>
+        Array.from(container.querySelectorAll(".total-cell")).map((cell) => cell.textContent);
+      const savedScores = () =>
+        JSON.parse(localStorage.getItem("scorekeeper.game")!).game.scorecards.map(
+          (card: { scores: number[] }) => card.scores,
+        );
 
-      await user.click(container.querySelectorAll("tbody tr:nth-child(1) .score-cell")[1]!);
+      it("changes the score in the table, and the totals with it", async () => {
+        const { user, container } = await playTwoRounds(); // Totals 3 and 7
 
-      expect(container.querySelector(".keypad")).not.toBeNull();
-      expect(container.querySelector(".round-label")!.textContent).toBe("Round 1");
-      expect(container.querySelector(".player.selected")!.textContent).toContain("Player 2");
+        await user.click(cellButton(container, 1, 1)); // Player 2's score in round 1, which is 3
+        await user.keyboard("10{Enter}");
+
+        expect(texts(container.querySelectorAll("tbody tr:nth-child(1) .score-cell"))).toEqual([
+          "5",
+          "10",
+        ]);
+        expect(totals(container)).toEqual(["3", "14"]);
+      });
+
+      it("is saved with the game", async () => {
+        const { user, container } = await playTwoRounds();
+
+        await user.click(cellButton(container, 2, 0)); // Player 1's score in round 2, which is -2
+        await user.keyboard("8{Enter}");
+
+        expect(savedScores()[0]).toEqual([0, 5, 8]);
+      });
+
+      it("changes the totals in the player list too", async () => {
+        const { user, container } = await playTwoRounds();
+
+        await user.click(cellButton(container, 1, 0));
+        await user.keyboard("20{Enter}");
+        await user.click(screen.getByRole("tab", { name: "Keypad" }));
+        await user.click(screen.getByRole("tab", { name: "Plot" })); // Shows the totals again
+
+        expect(shownScores(container)).toEqual(["18", "7"]);
+      });
+
+      it("stays on the table, and does not go to the keypad", async () => {
+        const { user, container } = await playTwoRounds();
+
+        await user.click(cellButton(container, 1, 1));
+
+        expect(container.querySelector(".keypad")).toBeNull();
+        expect(container.querySelector(".score-table-content")).not.toBeNull();
+      });
+
+      it("leaves the score alone when Escape is pressed", async () => {
+        const { user, container } = await playTwoRounds();
+
+        await user.click(cellButton(container, 1, 1));
+        await user.keyboard("99{Escape}");
+
+        expect(totals(container)).toEqual(["3", "7"]);
+        expect(savedScores()[1]).toEqual([0, 3, 4]);
+      });
+
+      it("says how", async () => {
+        await playTwoRounds();
+        expect(screen.getByText("Tap a score to edit it")).toBeTruthy();
+      });
     });
 
     it("says so when there are no players", async () => {
