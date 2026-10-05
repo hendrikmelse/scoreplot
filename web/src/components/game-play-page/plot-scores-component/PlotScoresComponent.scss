@@ -1,5 +1,8 @@
 @use "../../../Colors.scss" as *;
 
+// How visible the other lines are while one is picked out. 1 would leave them as they were.
+$dimmed-opacity: 0.5;
+
 .plot-scores-content {
   height: 100%;
   width: 100%;
@@ -57,9 +60,18 @@
     transition: stroke-width 100ms ease;
   }
 
-  // While the mouse is over a player in the player list, their line gets a bit thicker
-  .plot-player.highlighted .plot-line {
-    stroke-width: 3.5;
+  // While a player is picked out in the player list, their line gets a bit thicker, and the
+  // other players' lines step back a little
+  .plot-player {
+    transition: opacity 100ms ease;
+
+    &.dimmed {
+      opacity: $dimmed-opacity;
+    }
+
+    &.highlighted .plot-line {
+      stroke-width: 3.5;
+    }
   }
 
   // Marks where each player ended up. The outline separates dots that land close together.
@@ -81,6 +93,10 @@
     fill: currentColor;
     stroke: $gray-1;
     stroke-width: 1.5;
+
+    &.dimmed {
+      opacity: $dimmed-opacity;
+    }
   }
 }
 

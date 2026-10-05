@@ -27,6 +27,8 @@ export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayer
 
   const { min: minScore, max: maxScore } = totalScoreRange(game);
   const maxRound = lastRound(game);
+  // Whether one of the lines is being picked out, so that the others can step back a little
+  const anyHighlighted = game.scorecards.some((card) => card.id === highlightedPlayerId);
 
   // Keep the canvas size in sync with the size of the plot area
   useEffect(() => {
@@ -144,7 +146,10 @@ export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayer
       return (
         <g
           key={card.id}
-          className={clsx("plot-player", { highlighted: card.id === highlightedPlayerId })}
+          className={clsx("plot-player", {
+            highlighted: card.id === highlightedPlayerId,
+            dimmed: anyHighlighted && card.id !== highlightedPlayerId,
+          })}
           color={card.color}
         >
           <polyline className="plot-line" points={points.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -167,7 +172,9 @@ export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayer
           return (
             <circle
               key={card.id}
-              className="plot-hover-dot"
+              className={clsx("plot-hover-dot", {
+                dimmed: anyHighlighted && card.id !== highlightedPlayerId,
+              })}
               cx={x}
               cy={y}
               r={4.5}

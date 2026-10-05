@@ -30,6 +30,7 @@ export function PlayerListComponent({
   onPrevRound,
   onNextRound,
   onHighlightPlayer,
+  pinnedPlayerId,
   editing,
 }: {
   round: number;
@@ -39,6 +40,8 @@ export function PlayerListComponent({
   onNextRound: () => void;
   /** Called with a player's id while the mouse is over that player, and with "" when it leaves */
   onHighlightPlayer: (id: string) => void;
+  /** The player whose line has been picked out on the plot by pressing them, if any */
+  pinnedPlayerId: string;
   editing: boolean;
 }) {
   const { game, updateGame } = useGame();
@@ -272,10 +275,13 @@ export function PlayerListComponent({
                 selected: selectedPlayerId === card.id && showingRound && !editing,
                 editing: editing,
                 dragging: dragId === card.id,
+                pinned: pinnedPlayerId === card.id,
               })}
               onClick={() => onSelectPlayer(card.id)}
-              onMouseEnter={() => onHighlightPlayer(card.id)}
-              onMouseLeave={() => onHighlightPlayer("")}
+              // Only for a real mouse. A touchscreen pretends to hover over what was tapped, and
+              // leaves it that way, which would make it impossible to let go of a pinned player.
+              onPointerEnter={(e) => e.pointerType === "mouse" && onHighlightPlayer(card.id)}
+              onPointerLeave={(e) => e.pointerType === "mouse" && onHighlightPlayer("")}
               ref={(el) => {
                 if (el) playerRefs.current.set(card.id, el);
                 else playerRefs.current.delete(card.id);

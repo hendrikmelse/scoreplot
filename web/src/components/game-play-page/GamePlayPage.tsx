@@ -27,8 +27,10 @@ export function GamePlayPage() {
   // Continuing a game picks up at its latest round; a new game starts at round 1
   const [currentRound, setCurrentRound] = useState(() => Math.max(1, lastRound(game)));
   const [editing, setEditing] = useState(startInEditMode);
-  // The player the mouse is over in the player list, whose line the plot emphasizes
-  const [highlightedPlayerId, setHighlightedPlayerId] = useState("");
+  // The plot emphasizes the line of the player the mouse is over in the player list, or failing
+  // that, of the one that was tapped (which is the only way to do it without a mouse)
+  const [hoveredPlayerId, setHoveredPlayerId] = useState("");
+  const [pinnedPlayerIdState, setPinnedPlayerId] = useState("");
   // A new game starts with its name selected, ready to be typed over (only the first time it shows)
   const selectGameName = useRef(startInEditMode);
   const gameNameRef = useRef<HTMLDivElement>(null);
@@ -40,6 +42,9 @@ export function GamePlayPage() {
   const selectedPlayerId = game.scorecards.some((card) => card.id === selectedPlayerIdState)
     ? selectedPlayerIdState
     : firstPlayerId;
+
+  const pinnedPlayerId = currentContent === "plot" && !editing ? pinnedPlayerIdState : "";
+  const highlightedPlayerId = hoveredPlayerId || pinnedPlayerId;
 
   // What the keypad says the score being typed is for
   const selectedPlayer = game.scorecards.find((card) => card.id === selectedPlayerId);
@@ -80,7 +85,16 @@ export function GamePlayPage() {
     updateGame({ type: "add_score", playerId: selectedPlayerId, round: currentRound, score });
   }
 
+  // Pressing a player selects them for entering scores, and on the plot, picks out their line
+  function onPlayerPressed(playerId: string) {
+    setSelectedPlayerId(playerId);
+    if (currentContent === "plot" && !editing) {
+      setPinnedPlayerId(pinnedPlayerId === playerId ? "" : playerId);
+    }
+  }
+
   function changeContent(content: Content) {
+    if (content !== "plot") setPinnedPlayerId("");
     if (content === "plot" || content === "table") {
       // Delete any trailing rounds that are all zeros
       updateGame({ type: "trim_scores" });
@@ -173,8 +187,9 @@ export function GamePlayPage() {
             <PlayerListComponent
               round={currentContent === "keypad" ? currentRound : -1}
               selectedPlayerId={selectedPlayerId}
-              onSelectPlayer={setSelectedPlayerId}
-              onHighlightPlayer={setHighlightedPlayerId}
+              onSelectPlayer={onPlayerPressed}
+              onHighlightPlayer={setHoveredPlayerId}
+              pinnedPlayerId={pinnedPlayerId}
               onPrevRound={prevRound}
               onNextRound={nextRound}
               editing={editing}

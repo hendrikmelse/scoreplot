@@ -111,12 +111,14 @@ $drag-room: 10px;
       transition: none;
     }
 
-    &:not(.editing):not(.selected):hover {
+    &:not(.editing):not(.selected):not(.pinned):hover {
       background-color: $gray-2;
       transition: background-color 40ms ease;
     }
 
-    &.selected {
+    // Selected, for entering scores, or pinned, to pick out the player's line on the plot
+    &.selected,
+    &.pinned {
       background-color: $gray-4;
     }
 

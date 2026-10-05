@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
+import { defaultColors } from "@/config";
 import { createDemoGame } from "@/demoGame";
 import { lastRound, partialScores, totalScore, totalScoreRange } from "@/utils/Scores";
 
@@ -896,7 +897,7 @@ describe("game play page", () => {
           classes: line.getAttribute("class"),
         }));
 
-      it("makes that player's line bolder and leaves the other lines alone", async () => {
+      it("makes that player's line bolder, and lets the other lines step back", async () => {
         const { user, container } = await twoPlayersTwoRounds();
         expect(lineStates(container).some((s) => s.highlighted)).toBe(false);
 
@@ -904,9 +905,37 @@ describe("game play page", () => {
 
         const states = lineStates(container);
         expect(states.filter((s) => s.highlighted)).toHaveLength(1);
-        // The other line has no extra classes, so nothing fades it
-        expect(states.filter((s) => !s.highlighted).map((s) => s.classes)).toEqual(["plot-player"]);
+        // The other line is dimmed, and the highlighted one is not
+        expect(states.filter((s) => !s.highlighted).map((s) => s.classes)).toEqual([
+          "plot-player dimmed",
+        ]);
+        expect(states.find((s) => s.highlighted)!.classes).toBe("plot-player highlighted");
+      });
+
+      it("does not dim anything while nobody is picked out", async () => {
+        const { container } = await twoPlayersTwoRounds();
         expect(container.querySelector(".dimmed")).toBeNull();
+      });
+
+      it("stops dimming when the mouse leaves the player", async () => {
+        const { user, container } = await twoPlayersTwoRounds();
+        const player = container.querySelectorAll(".player")[1]!;
+
+        await user.hover(player);
+        expect(container.querySelectorAll(".plot-player.dimmed")).toHaveLength(1);
+        await user.unhover(player);
+
+        expect(container.querySelector(".dimmed")).toBeNull();
+      });
+
+      it("dims the dots on the other lines as well, while the plot is being pointed at", async () => {
+        const { user, container } = await twoPlayersTwoRounds();
+        fireEvent.pointerMove(container.querySelector(".plot-area")!, { clientX: 776 });
+
+        await user.hover(container.querySelectorAll(".player")[1]!);
+
+        const dots = Array.from(container.querySelectorAll(".plot-hover-dot"));
+        expect(dots.filter((dot) => dot.classList.contains("dimmed"))).toHaveLength(1);
       });
 
       it("draws the highlighted line last, on top", async () => {
@@ -1522,5 +1551,152 @@ describe("the keyboard and the keypad", () => {
     await user.keyboard("{Enter}");
 
     expect(container.querySelector(".score-value")!.textContent).toBe("8");
+  });
+});
+
+describe("picking out a player's line by pressing them", () => {
+  /** Two players, shown on the plot. The first is red, the second orange. */
+  async function onThePlot() {
+    const user = userEvent.setup();
+    const view = renderApp("/play/");
+    await addSecondPlayer(user, view.container);
+    fireEvent.keyDown(window, { key: "5" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "3" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "2" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+    const rows = () => Array.from(view.container.querySelectorAll<HTMLElement>(".player"));
+    /** Which players' lines are picked out: 0 for the first, 1 for the second */
+    const highlighted = () =>
+      Array.from(view.container.querySelectorAll(".plot-player.highlighted")).map((line) =>
+        defaultColors.indexOf(line.getAttribute("color")!),
+      );
+    return { user, rows, highlighted, ...view };
+  }
+
+  it("makes the line of a player that is pressed bolder, and marks the player", async () => {
+    const { user, rows, highlighted } = await onThePlot();
+
+    await user.click(rows()[1]!);
+
+    expect(highlighted()).toEqual([1]);
+    expect(rows()[1]!.classList.contains("pinned")).toBe(true);
+    expect(rows()[0]!.classList.contains("pinned")).toBe(false);
+  });
+
+  it("lets go of the pin when the player is pressed again", async () => {
+    const { user, rows } = await onThePlot();
+
+    await user.click(rows()[1]!);
+    await user.click(rows()[1]!);
+
+    expect(rows()[1]!.classList.contains("pinned")).toBe(false);
+  });
+
+  it("lets go of the line too, once the mouse has moved away", async () => {
+    const { user, rows, highlighted } = await onThePlot();
+
+    await user.click(rows()[1]!);
+    await user.click(rows()[1]!);
+    expect(highlighted()).toEqual([1]); // The mouse is still over them, which shows the line
+    await user.unhover(rows()[1]!);
+
+    expect(highlighted()).toEqual([]);
+  });
+
+  it("moves to another player when that one is pressed", async () => {
+    const { user, rows, highlighted } = await onThePlot();
+
+    await user.click(rows()[0]!);
+    await user.click(rows()[1]!);
+
+    expect(rows()[0]!.classList.contains("pinned")).toBe(false);
+    expect(rows()[1]!.classList.contains("pinned")).toBe(true);
+    expect(highlighted()).toEqual([1]);
+  });
+
+  it("works with a finger, which has no hover to do it with", async () => {
+    const { user, rows, highlighted } = await onThePlot();
+
+    await user.pointer({ keys: "[TouchA]", target: rows()[0]! });
+
+    expect(highlighted()).toEqual([0]);
+    expect(rows()[0]!.classList.contains("pinned")).toBe(true);
+  });
+
+  it("can be let go of by touch, as a touchscreen's pretend hover does not hold on to it", async () => {
+    const { user, rows, highlighted } = await onThePlot();
+    const row = rows()[0]!;
+
+    await user.pointer({ keys: "[TouchA]", target: row });
+    fireEvent.pointerEnter(row, { pointerType: "touch" }); // What a touchscreen does on a tap
+    await user.pointer({ keys: "[TouchA]", target: row });
+    fireEvent.pointerEnter(row, { pointerType: "touch" });
+
+    expect(highlighted()).toEqual([]);
+  });
+
+  it("is not made by a touch merely passing over a player", async () => {
+    const { rows, highlighted } = await onThePlot();
+
+    fireEvent.pointerEnter(rows()[0]!, { pointerType: "touch" });
+
+    expect(highlighted()).toEqual([]);
+  });
+
+  it("shows another player's line while the mouse is over them, then goes back", async () => {
+    const { user, rows, highlighted } = await onThePlot();
+    await user.click(rows()[0]!); // Pin the first
+    expect(highlighted()).toEqual([0]);
+
+    await user.hover(rows()[1]!);
+    expect(highlighted()).toEqual([1]);
+
+    await user.unhover(rows()[1]!);
+    expect(highlighted()).toEqual([0]);
+    expect(rows()[0]!.classList.contains("pinned")).toBe(true);
+  });
+
+  it("goes away when the plot does", async () => {
+    const { user, rows, highlighted, container } = await onThePlot();
+    await user.click(rows()[1]!);
+
+    await user.click(screen.getByRole("tab", { name: "Table" }));
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+    await user.unhover(rows()[1]!);
+
+    expect(highlighted()).toEqual([]);
+    expect(container.querySelector(".player.pinned")).toBeNull();
+  });
+
+  it("stays when the Plot tab is pressed while the plot is already showing", async () => {
+    const { user, rows } = await onThePlot();
+    await user.click(rows()[1]!);
+
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+
+    expect(rows()[1]!.classList.contains("pinned")).toBe(true);
+  });
+
+  it("does not happen away from the plot, where pressing a player only selects them", async () => {
+    const { user, container } = await onThePlot();
+    await user.click(screen.getByRole("tab", { name: "Keypad" }));
+
+    await user.click(container.querySelectorAll(".player")[1]!);
+
+    expect(container.querySelector(".player.pinned")).toBeNull();
+    expect(container.querySelector(".player.selected")!.textContent).toContain("Player 2");
+  });
+
+  it("does not happen while editing", async () => {
+    const { user, container } = await onThePlot();
+    await user.click(screen.getByRole("button", { name: "Edit players" }));
+
+    await user.click(container.querySelectorAll(".player")[1]!);
+
+    expect(container.querySelector(".player.pinned")).toBeNull();
   });
 });
