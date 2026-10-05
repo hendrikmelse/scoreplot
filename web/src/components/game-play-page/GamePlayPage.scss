@@ -1,4 +1,8 @@
 @use "../../Colors.scss" as *;
+@use "../../Breakpoints.scss" as *;
+
+// The player list column. It can shrink a bit on smaller screens, to leave more room for the plot.
+$left-width: clamp(420px, 38vw, 500px);
 
 .game-play-background {
   display: flex;
@@ -6,8 +10,8 @@
 }
 
 .left-section {
-  flex: 0 0 500px;
-  min-width: 0; // Stay 500px wide no matter what the contents want
+  flex: 0 0 $left-width;
+  min-width: 0; // Stay this wide no matter what the contents want
   height: 90%;
   width: 100%;
   display: flex;
@@ -50,6 +54,7 @@
     .game-name-section {
       position: relative;
       flex: 1;
+      min-width: 0;
       margin-right: 10px;
       background-color: $gray-1;
       border: 1px solid $gray-4;
@@ -59,10 +64,14 @@
       justify-content: center;
 
       .game-name-label {
-        padding-bottom: 3px;
+        min-width: 0;
+        overflow: hidden;
+        padding: 0 12px 3px;
         color: $light-elements;
         font-size: 22pt;
         font-weight: bold;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .game-name-input {
@@ -95,6 +104,7 @@
       flex: 1;
       min-width: 0;
       min-height: 0;
+      container-type: inline-size; // So that what is inside can adapt to how wide this ends up being
       display: flex; // The round buttons and the add player button stay put, the list scrolls
       flex-direction: column;
       overflow: hidden;
@@ -105,6 +115,8 @@
       border-bottom-right-radius: 16px;
     }
 
+    // The tabs for the keypad, the plot and the table. Side by side, they hang off the left edge
+    // of the content, and the selected one joins up with it.
     .buttons-section {
       flex: 0 0 90px;
       height: 90%;
@@ -112,29 +124,22 @@
       flex-direction: column;
       gap: 10px;
 
-      .spacer {
-        flex: 1;
-      }
-
       button {
         height: 80px;
         width: 80px;
         background-color: $gray-1;
         border: 1px solid $gray-4;
+        border-right: none;
+        border-top-left-radius: 16px;
+        border-bottom-left-radius: 16px;
+        align-self: flex-end;
         color: $light-elements;
         cursor: pointer;
+        transition: width 80ms ease;
 
         span {
           font-size: 32px;
         }
-      }
-
-      button {
-        align-self: flex-end;
-        border-right: none;
-        border-top-left-radius: 16px;
-        border-bottom-left-radius: 16px;
-        transition: width 80ms ease;
 
         &.selected {
           width: 73px;
@@ -146,24 +151,150 @@
           background-color: $gray-3;
         }
       }
-
-      .button-home {
-        margin-bottom: 40px;
-      }
-
-      .button-edit {
-        margin-bottom: 60px;
-      }
     }
   }
 }
 
 .content-section {
   flex: 1;
+  min-width: 0;
   height: 90%;
   background-color: $gray-1;
   border: 1px solid $gray-4;
   border-right: none;
   border-top-left-radius: 16px;
   border-bottom-left-radius: 16px;
+}
+
+// On portrait screens everything is stacked: the header, the tabs, the content, then the list
+@include stacked {
+  .game-play-background {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) minmax(160px, 36%);
+    gap: 10px;
+    padding: 12px;
+    align-items: stretch;
+  }
+
+  // The columns are only there to arrange things side by side. Take them out of the way, so that
+  // their contents can be arranged in the grid directly.
+  .left-section,
+  .left-section .bottom-left-section {
+    display: contents;
+  }
+
+  .left-section .top-left-section {
+    grid-row: 1;
+    height: 64px;
+
+    .top-buttons-section {
+      width: auto;
+      flex-direction: row;
+
+      button {
+        flex: none;
+        width: 64px;
+        border-left: 1px solid $gray-4;
+        border-radius: 16px;
+      }
+    }
+
+    .game-name-section {
+      margin-right: 0;
+
+      .game-name-label,
+      .game-name-input {
+        font-size: 18pt;
+      }
+
+      // The name can take two lines, so that more of a long one fits on a narrow screen
+      .game-name-label {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 16pt;
+        line-height: 1.15;
+        padding-bottom: 0;
+        text-align: center;
+        white-space: normal;
+      }
+    }
+  }
+
+  .left-section .bottom-left-section {
+    .buttons-section {
+      grid-row: 2;
+      height: auto;
+      flex-direction: row;
+
+      button {
+        flex: 1;
+        width: auto;
+        height: 56px;
+        border: 1px solid $gray-4;
+        border-radius: 16px;
+        transition: none;
+
+        span {
+          font-size: 28px;
+        }
+
+        // There is nothing to join up with, so the selected tab is just a brighter one
+        &.selected {
+          width: auto;
+          margin-right: 0;
+          background-color: $gray-3;
+          border-color: $gray-5;
+        }
+      }
+    }
+
+    .player-list-section {
+      grid-row: 4;
+      border-left: 1px solid $gray-4;
+      border-radius: 16px;
+    }
+  }
+
+  .content-section {
+    grid-row: 3;
+    height: auto;
+    border-right: 1px solid $gray-4;
+    border-radius: 16px;
+  }
+}
+
+// A phone on its side has very little height, so give the player list as much of it as possible
+@include short {
+  .left-section,
+  .content-section {
+    height: 96%;
+  }
+
+  .left-section .top-left-section {
+    height: 76px;
+
+    .top-buttons-section {
+      width: 124px;
+      flex-direction: row;
+      gap: 8px;
+
+      button {
+        border-radius: 0 16px 16px 0;
+
+        &:last-child {
+          border-radius: 16px;
+          border-left: 1px solid $gray-4;
+        }
+      }
+    }
+
+    .game-name-section {
+      .game-name-label,
+      .game-name-input {
+        font-size: 18pt;
+      }
+    }
+  }
 }

@@ -1,4 +1,5 @@
 @use "../../../Colors.scss" as *;
+@use "../../../Breakpoints.scss" as *;
 
 $row-height: 40px; // Tall enough to tap
 $player-gap: 4px;
@@ -40,6 +41,26 @@ $drag-room: 10px;
     color: $light-elements;
     font-size: 18pt;
     font-weight: bold;
+  }
+
+  // Stacked, the list is a panel of its own with space on both sides
+  @include stacked {
+    margin: 14px 20px (6px - $drag-room);
+  }
+
+  // On a short screen, keep the space above the list small
+  @include short {
+    margin-block: 12px (4px - $drag-room);
+  }
+
+  // In a narrow panel the heading has to share the space with the buttons on both sides of it.
+  // This comes last, so that it wins over the margins above.
+  @container (max-width: 380px) {
+    margin-inline: 16px;
+
+    button {
+      width: 64px;
+    }
   }
 }
 
@@ -194,6 +215,19 @@ $drag-room: 10px;
     .spacer-right {
       width: 20px;
     }
+
+    // In a narrow panel the name needs all the room it can get
+    @container (max-width: 380px) {
+      gap: 8px;
+
+      .spacer-left {
+        width: 6px;
+      }
+
+      .spacer-right {
+        width: 10px;
+      }
+    }
   }
 }
 
@@ -204,9 +238,9 @@ $drag-room: 10px;
   justify-content: center;
   transition: opacity 60ms ease;
 
+  // Not taking up any room while it is not needed, which is most of the time
   &.hidden {
-    opacity: 0;
-    pointer-events: none;
+    display: none;
   }
 
   .add-player-button {

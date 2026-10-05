@@ -14,7 +14,8 @@
 
   .title {
     color: white;
-    font-size: 48pt;
+    font-size: min(48pt, 11vw); // Shrinks to fit on narrow screens
+    text-align: center;
     letter-spacing: 0.03em;
     margin: 0;
   }

@@ -1,0 +1,18 @@
+// The game page has two arrangements. Side by side (the default) puts the player list in a column
+// on the left and gives the rest of the screen to the plot, keypad or table, which keeps the
+// plot a good wide shape on landscape screens. On portrait screens that would leave the plot a
+// thin sliver, so everything is stacked instead: the plot across the full width, and the list below.
+
+/** Screens that are taller than they are wide (and square ones) */
+@mixin stacked {
+  @media (max-aspect-ratio: 1 / 1) {
+    @content;
+  }
+}
+
+/** Landscape screens that do not have much height, like a phone on its side */
+@mixin short {
+  @media (max-height: 560px) and (min-aspect-ratio: 1 / 1) {
+    @content;
+  }
+}
