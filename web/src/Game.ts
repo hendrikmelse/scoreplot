@@ -1,4 +1,5 @@
 import { produce } from "immer";
+import { defaultColors, fallbackPlayerColor } from "@/config";
 
 // ========== Game interfaces ==========
 
@@ -12,135 +13,106 @@ export interface Scorecard {
   id: string;
   playerName: string;
   color: string;
+  /** scores[0] is the initial score, scores[n] is the score for round n */
   scores: number[];
 }
 
-// ========== Disptacher ==========
-
-interface UpdateName {
-  type: "update_name";
-  newName: string;
+export function createGame(): Game {
+  return {
+    id: crypto.randomUUID(),
+    name: "New Game",
+    scorecards: [1, 2].map((n) => ({
+      id: crypto.randomUUID(),
+      playerName: `Player ${n}`,
+      color: defaultColors[n - 1] ?? fallbackPlayerColor,
+      scores: [0],
+    })),
+  };
 }
 
-interface AddPlayer {
-  type: "add_player";
-  newPlayerName: string;
-  newPlayerColor: string;
+/** The first default color that no player is using yet */
+export function nextPlayerColor(game: Game): string {
+  return (
+    defaultColors.find((color) => !game.scorecards.some((card) => card.color === color)) ??
+    fallbackPlayerColor
+  );
 }
 
-interface DeletePlayer {
-  type: "delete_player";
-  playerId: string;
-}
-
-interface ChangePlayerColor {
-  type: "change_player_color";
-  playerId: string;
-  newColor: string;
-}
-
-interface ChangePlayerName {
-  type: "change_player_name";
-  playerId: string;
-  newPlayerName: string;
-}
-
-interface MovePlayer {
-  type: "move_player";
-  playerId: string;
-  direction: "up" | "down";
-}
-
-interface AddScore {
-  type: "add_score";
-  playerId: string;
-  round: number;
-  score: number;
-}
-
-interface AddRound {
-  type: "add_round";
-  round: number;
-}
-
-interface TrimScores {
-  type: "trim_scores";
-}
+// ========== Dispatcher ==========
 
 export type UpdateGameAction =
-  | UpdateName
-  | AddPlayer
-  | DeletePlayer
-  | ChangePlayerColor
-  | ChangePlayerName
-  | MovePlayer
-  | AddScore
-  | AddRound
-  | TrimScores;
+  | { type: "new_game" }
+  | { type: "update_name"; newName: string }
+  | { type: "add_player"; newPlayerId: string; newPlayerName: string; newPlayerColor: string }
+  | { type: "delete_player"; playerId: string }
+  | { type: "change_player_color"; playerId: string; newColor: string }
+  | { type: "change_player_name"; playerId: string; newPlayerName: string }
+  | { type: "move_player"; playerId: string; direction: "up" | "down" }
+  | { type: "add_score"; playerId: string; round: number; score: number }
+  | { type: "add_round"; round: number }
+  | { type: "trim_scores" };
 
-export function gameReducer(game: Game, action: UpdateGameAction) {
+export const gameReducer = produce((draft: Game, action: UpdateGameAction): Game | void => {
+  const findCard = (playerId: string) => draft.scorecards.find((card) => card.id === playerId);
+
   switch (action.type) {
+    case "new_game":
+      return createGame();
     case "update_name":
-      return produce(game, (draft) => {
-        draft.name = action.newName;
-      });
+      draft.name = action.newName;
+      break;
     case "add_player":
-      return produce(game, (draft) => {
-        draft.scorecards.push({
-          id: crypto.randomUUID(),
-          playerName: action.newPlayerName,
-          color: action.newPlayerColor,
-          scores: Array(draft.scorecards[0]?.scores.length ?? 0).fill(0),
-        });
+      draft.scorecards.push({
+        id: action.newPlayerId,
+        playerName: action.newPlayerName,
+        color: action.newPlayerColor,
+        scores: Array(draft.scorecards[0]?.scores.length ?? 1).fill(0),
       });
-    case "delete_player":
-      return produce(game, (draft) => {
-        draft.scorecards.splice(
-          draft.scorecards.findIndex((card) => card.id === action.playerId),
-          1,
-        );
-      });
-    case "change_player_color":
-      return produce(game, (draft) => {
-        draft.scorecards.find((card) => card.id === action.playerId)!.color = action.newColor;
-      });
-    case "change_player_name":
-      return produce(game, (draft) => {
-        draft.scorecards.find((card) => card.id === action.playerId)!.playerName =
-          action.newPlayerName;
-      });
-    case "move_player":
-      return produce(game, (draft) => {
-        const index =
-          draft.scorecards.findIndex((card) => card.id === action.playerId) +
-          (action.direction === "up" ? -1 : 0);
-        if (index >= 0 && index + 1 < draft.scorecards.length) {
-          const [card] = draft.scorecards.splice(index, 1);
-          draft.scorecards.splice(index + 1, 0, card!);
-        }
-      });
-    case "add_score":
-      return produce(game, (draft) => {
-        const scorecard = draft.scorecards.find((card) => card.id === action.playerId);
-
-        while (scorecard!.scores.length < action.round) {
-          scorecard!.scores.push(0);
-        }
-        scorecard!.scores[action.round] = action.score;
-      });
+      break;
+    case "delete_player": {
+      const index = draft.scorecards.findIndex((card) => card.id === action.playerId);
+      if (index >= 0) draft.scorecards.splice(index, 1);
+      break;
+    }
+    case "change_player_color": {
+      const card = findCard(action.playerId);
+      if (card) card.color = action.newColor;
+      break;
+    }
+    case "change_player_name": {
+      const card = findCard(action.playerId);
+      if (card) card.playerName = action.newPlayerName;
+      break;
+    }
+    case "move_player": {
+      const from = draft.scorecards.findIndex((card) => card.id === action.playerId);
+      const to = action.direction === "up" ? from - 1 : from + 1;
+      if (from >= 0 && to >= 0 && to < draft.scorecards.length) {
+        const [card] = draft.scorecards.splice(from, 1);
+        draft.scorecards.splice(to, 0, card!);
+      }
+      break;
+    }
+    case "add_score": {
+      const card = findCard(action.playerId);
+      if (!card) break;
+      while (card.scores.length < action.round) card.scores.push(0);
+      card.scores[action.round] = action.score;
+      break;
+    }
     case "add_round":
-      return produce(game, (draft) => {
-        for (const scorecard of draft.scorecards) {
-          while (scorecard.scores.length <= action.round) {
-            scorecard.scores.push(0);
-          }
-        }
-      });
+      for (const card of draft.scorecards) {
+        while (card.scores.length <= action.round) card.scores.push(0);
+      }
+      break;
     case "trim_scores":
-      return produce(game, (draft) => {
-        while (draft.scorecards.every((card) => card.scores.at(-1) === 0)) {
-          draft.scorecards.forEach((card) => card.scores.pop());
-        }
-      });
+      // Delete trailing rounds in which nobody scored, but always keep the initial scores
+      while (
+        draft.scorecards.length > 0 &&
+        draft.scorecards.every((card) => card.scores.length > 1 && card.scores.at(-1) === 0)
+      ) {
+        draft.scorecards.forEach((card) => card.scores.pop());
+      }
+      break;
   }
-}
+});

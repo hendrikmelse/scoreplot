@@ -1,10 +1,20 @@
 import "./PlayerListComponent.scss";
 import clsx from "clsx";
-import React, { useContext, useLayoutEffect, useState, useRef, useEffect } from "react";
-import { GameContext } from "@/GameContext";
+import React, { useLayoutEffect, useState, useRef, useEffect } from "react";
+import { useGame } from "@/GameContext";
+import { nextPlayerColor } from "@/Game";
 import { totalScore } from "@/utils/Scores";
 import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
-import { defaultColors } from "@/config";
+
+/** The round passed in when the player list should show total scores instead of a round */
+const TOTAL_SCORES = -1;
+
+function roundLabel(round: number, editing: boolean): string {
+  if (editing) return "Edit Players";
+  if (round === TOTAL_SCORES) return "Total Scores";
+  if (round === 0) return "Initial Score";
+  return `Round ${round}`;
+}
 
 export function PlayerListComponent({
   round,
@@ -21,34 +31,38 @@ export function PlayerListComponent({
   onNextRound: () => void;
   editing: boolean;
 }) {
+  const { game, updateGame } = useGame();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectingColorId, setSelectingColorId] = useState("");
   const [colorPickerPosition, setColorPickerPosition] = useState<DOMRect | null>(null);
-  const [editingPlayerNameIdState, setEditingPlayerNameId] = useState("");
+  const [editingPlayerNameId, setEditingPlayerNameId] = useState("");
   const [dragId, setDragId] = useState("");
   const dragStartY = useRef(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
-  const { game, updateGame } = useContext(GameContext)!;
+  const [playerSpacing, setPlayerSpacing] = useState(0);
   const playerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const playerPositions = useRef<Map<string, DOMRect>>(new Map());
-  const [playerSpacing, setPlayerSpacing] = useState(0);
 
-  // "next" means "the player that was just added", which is the last player once the game updates
-  const lastPlayerId = game.scorecards.at(-1)?.id;
-  const editingPlayerNameId =
-    editingPlayerNameIdState === "next" ? (lastPlayerId ?? "") : editingPlayerNameIdState;
+  const showingRound = round !== TOTAL_SCORES;
 
   // Highlight text automatically when a player name is edited
   useEffect(() => {
     inputRef.current?.select();
   }, [editingPlayerNameId]);
 
-  // Don't let the user select text while dragging a player
+  // While dragging a player, don't let the user select text, and stop the drag on release
   useEffect(() => {
     if (dragId === "") return;
+
+    const stopDragging = () => setDragId("");
     document.body.style.userSelect = "none";
+    window.addEventListener("pointerup", stopDragging);
+    window.addEventListener("pointercancel", stopDragging);
+
     return () => {
       document.body.style.userSelect = "";
+      window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
     };
   }, [dragId]);
 
@@ -84,39 +98,22 @@ export function PlayerListComponent({
     }
   }
 
-  function updatePlayerName(newName: string, id: string) {
-    updateGame({
-      type: "change_player_name",
-      playerId: id,
-      newPlayerName: newName,
-    });
-  }
-
   function onColorClick(e: React.MouseEvent<HTMLDivElement>, id: string) {
     if (editing) {
-      const rect = e.currentTarget.getBoundingClientRect();
       setSelectingColorId(id);
-      setColorPickerPosition(rect);
+      setColorPickerPosition(e.currentTarget.getBoundingClientRect());
     }
   }
 
   function addPlayer() {
-    setEditingPlayerNameId("next"); // After game is updated, this will convert to the new player
+    const newPlayerId = crypto.randomUUID();
     updateGame({
       type: "add_player",
+      newPlayerId,
       newPlayerName: "Player " + (game.scorecards.length + 1),
-      // Choose the first unused default color
-      newPlayerColor:
-        defaultColors.find((color) => !game.scorecards.some((card) => card.color === color)) ??
-        "#0000e0",
+      newPlayerColor: nextPlayerColor(game),
     });
-  }
-
-  function deletePlayer(id: string) {
-    updateGame({
-      type: "delete_player",
-      playerId: id,
-    });
+    setEditingPlayerNameId(newPlayerId); // Start editing the new player's name right away
   }
 
   // Measure the position of each player. Used for FLIP animations
@@ -126,7 +123,7 @@ export function PlayerListComponent({
     });
   }
 
-  // Se need to know what the player spacing is in order to know how far to drag before reordering the list
+  // We need to know what the player spacing is in order to know how far to drag before reordering the list
   function measurePlayerSpacing() {
     const players = Array.from(playerRefs.current.values());
     if (players.length >= 2) {
@@ -143,15 +140,6 @@ export function PlayerListComponent({
     dragStartY.current = e.clientY;
     setDragDeltaY(0);
     setDragId(id);
-
-    window.addEventListener("pointerup", stopDragging);
-  }
-
-  function stopDragging() {
-    console.log("Stopping dragging");
-    setDragId("");
-
-    window.removeEventListener("pointerup", stopDragging);
   }
 
   function onDrag(e: React.PointerEvent) {
@@ -160,55 +148,55 @@ export function PlayerListComponent({
     // Compute how far we've dragged and where the dragged item currently is in the list
     const deltaY = e.clientY - dragStartY.current;
     const index = game.scorecards.findIndex((card) => card.id === dragId);
+    const reorderDistance = (playerSpacing * 3) / 5;
 
     // Figure out if we need to move the item's position
-    if (index > 0 && -deltaY > (playerSpacing * 3) / 5) {
+    if (index > 0 && -deltaY > reorderDistance) {
       measurePlayerPositions();
       dragStartY.current -= playerSpacing;
-      updateGame({
-        type: "move_player",
-        playerId: dragId,
-        direction: "up",
-      });
-    } else if (index < game.scorecards.length - 1 && deltaY > (playerSpacing * 3) / 5) {
+      updateGame({ type: "move_player", playerId: dragId, direction: "up" });
+    } else if (index < game.scorecards.length - 1 && deltaY > reorderDistance) {
       measurePlayerPositions();
       dragStartY.current += playerSpacing;
-      updateGame({
-        type: "move_player",
-        playerId: dragId,
-        direction: "down",
-      });
+      updateGame({ type: "move_player", playerId: dragId, direction: "down" });
     }
 
     // Need to recompute the delta here because the start Y may have been updated by a reorder
     setDragDeltaY(e.clientY - dragStartY.current);
   }
 
+  // How far the dragged player at `index` is shifted. The first and last players can only be
+  // pulled a little past the ends of the list.
+  function dragOffset(index: number): number {
+    const overshoot = playerSpacing / 6;
+    const min = index === 0 ? -overshoot : -Infinity;
+    const max = index === game.scorecards.length - 1 ? overshoot : Infinity;
+    return Math.min(Math.max(dragDeltaY, min), max);
+  }
+
   return (
     <>
-      <div className={"round-buttons"}>
-        <button className={clsx({ hidden: round === -1 || editing })} onClick={() => onPrevRound()}>
+      <div className="round-buttons">
+        <button
+          className={clsx({ hidden: !showingRound || editing })}
+          onClick={() => onPrevRound()}
+        >
           <span className="material-symbols-outlined">arrow_left_alt</span>
         </button>
-        <div className="round-label">
-          {editing
-            ? "Edit Players"
-            : round === 0
-              ? "Initial Score"
-              : round === -1
-                ? "Total Scores"
-                : `Round ${round}`}
-        </div>
-        <button className={round === -1 || editing ? "hidden" : ""} onClick={() => onNextRound()}>
+        <div className="round-label">{roundLabel(round, editing)}</div>
+        <button
+          className={clsx({ hidden: !showingRound || editing })}
+          onClick={() => onNextRound()}
+        >
           <span className="material-symbols-outlined">arrow_right_alt</span>
         </button>
       </div>
-      <div className="player-list" onPointerMove={(e) => onDrag(e)}>
+      <div className="player-list" onPointerMove={onDrag}>
         {game.scorecards.map((card, index) => (
           <React.Fragment key={card.id}>
             <div
               className={clsx("player", {
-                selected: selectedPlayerId === card.id && round >= 0 && !editing,
+                selected: selectedPlayerId === card.id && showingRound && !editing,
                 editing: editing,
                 dragging: dragId === card.id,
               })}
@@ -217,13 +205,7 @@ export function PlayerListComponent({
                 if (el) playerRefs.current.set(card.id, el);
                 else playerRefs.current.delete(card.id);
               }}
-              style={
-                card.id === dragId
-                  ? {
-                      transform: `translateY(${Math.min(Math.max(dragDeltaY, index === 0 ? -playerSpacing / 6 : -Infinity), index === game.scorecards.length - 1 ? playerSpacing / 6 : Infinity)}px)`,
-                    }
-                  : {}
-              }
+              style={card.id === dragId ? { transform: `translateY(${dragOffset(index)}px)` } : {}}
             >
               <div className="spacer-left" />
               <div
@@ -248,7 +230,13 @@ export function PlayerListComponent({
                   className="player-name-input"
                   ref={inputRef}
                   value={card.playerName}
-                  onChange={(e) => updatePlayerName(e.target.value, card.id)}
+                  onChange={(e) =>
+                    updateGame({
+                      type: "change_player_name",
+                      playerId: card.id,
+                      newPlayerName: e.target.value,
+                    })
+                  }
                   onBlur={() => setEditingPlayerNameId("")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") setEditingPlayerNameId("");
@@ -260,31 +248,29 @@ export function PlayerListComponent({
                 </div>
               )}
               <div className={clsx("score", { hidden: editing })}>
-                {round >= 0 ? card.scores[round] : totalScore(card)}
+                {showingRound ? (card.scores[round] ?? 0) : totalScore(card)}
               </div>
               <div
                 className={clsx("delete-button", { hidden: !editing })}
-                onClick={() => deletePlayer(card.id)}
+                onClick={() => updateGame({ type: "delete_player", playerId: card.id })}
               >
                 <span className="material-symbols-outlined">delete</span>
               </div>
               <div className="spacer-right" />
             </div>
-            {selectingColorId === card.id ? (
+            {selectingColorId === card.id && colorPickerPosition && (
               <SelectColorComponent
                 currentColor={card.color}
-                position={colorPickerPosition!}
+                position={colorPickerPosition}
                 playerId={card.id}
                 onClose={() => setSelectingColorId("")}
               />
-            ) : (
-              <></>
             )}
           </React.Fragment>
         ))}
       </div>
       <div className={clsx("add-player-row", { hidden: !editing })}>
-        <button className="add-player-button" onClick={() => addPlayer()}>
+        <button className="add-player-button" onClick={addPlayer}>
           <span className="material-symbols-outlined">add</span>
         </button>
       </div>

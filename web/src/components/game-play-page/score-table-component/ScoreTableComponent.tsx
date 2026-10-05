@@ -1,13 +1,12 @@
 import "./ScoreTableComponent.scss";
-import { useContext } from "react";
-import { GameContext } from "@/GameContext";
+import { useGame } from "@/GameContext";
 
 export function ScoreTableComponent({
   onScoreSelected,
 }: {
-  onScoreSelected: (playerId: string, scoreIndex: number) => void;
+  onScoreSelected: (playerId: string, round: number) => void;
 }) {
-  const { game } = useContext(GameContext)!;
+  const { game } = useGame();
 
   return (
     <div className="score-table-content">
@@ -16,9 +15,9 @@ export function ScoreTableComponent({
           <div className="player-column" key={card.id}>
             <div className="player-name">{card.playerName}</div>
             <div className="table-divider"></div>
-            {card.scores.map((score, index) => (
-              <div className="score-box" key={index}>
-                <span className="score" onClick={() => onScoreSelected(card.id, index)}>
+            {card.scores.map((score, round) => (
+              <div className="score-box" key={round}>
+                <span className="score" onClick={() => onScoreSelected(card.id, round)}>
                   {score}
                 </span>
               </div>

@@ -8,3 +8,6 @@ export const defaultColors = [
   "#911eb4",
   "#f052e6",
 ];
+
+/** Used for new players once every default color is taken */
+export const fallbackPlayerColor = "#0000e0";

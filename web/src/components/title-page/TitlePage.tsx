@@ -1,23 +1,26 @@
 import "./TitlePage.scss";
 import { useNavigate } from "react-router-dom";
+import { useGame } from "@/GameContext";
 
 export function TitlePage() {
   const navigate = useNavigate();
+  const { game, updateGame } = useGame();
 
-  function handleLoadGameClick() {
-    navigate(`/play`);
+  function startNewGame() {
+    updateGame({ type: "new_game" });
+    navigate("/play");
   }
 
   return (
     <div className="background title-page-background">
       <div className="main-card title-page-content">
         <h1 className="title">SCOREKEEPER</h1>
-        <button className="button button-large" onClick={() => navigate("/play")}>
+        <button className="button button-large" onClick={startNewGame}>
           Start New Game
         </button>
-        <button className="button button-large" onClick={handleLoadGameClick}>
+        <button className="button button-large" onClick={() => navigate("/play")}>
           <div className="continue-game-text">Continue Game</div>
-          <div className="continue-game-name">&lt;saved game&gt;</div>
+          <div className="continue-game-name">{game.name}</div>
         </button>
       </div>
     </div>
