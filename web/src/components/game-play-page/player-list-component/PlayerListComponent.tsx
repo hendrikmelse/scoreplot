@@ -2,7 +2,8 @@ import "./PlayerListComponent.scss";
 import clsx from "clsx";
 import React, { useLayoutEffect, useState, useRef, useEffect } from "react";
 import { useGame } from "@/GameContext";
-import { nextPlayerColor } from "@/Game";
+import { useToast } from "@/ToastContext";
+import { nextPlayerColor, type Scorecard } from "@/Game";
 import { totalScore } from "@/utils/Scores";
 import { autoScrollSpeed } from "@/utils/autoScroll";
 import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
@@ -36,6 +37,7 @@ export function PlayerListComponent({
   editing: boolean;
 }) {
   const { game, updateGame } = useGame();
+  const { showToast } = useToast();
   // The player whose name field should be focused as soon as it appears (a just-added player)
   const focusPlayerId = useRef("");
   const [selectingColorId, setSelectingColorId] = useState("");
@@ -143,6 +145,15 @@ export function PlayerListComponent({
       setSelectingColorId(id);
       setColorPickerPosition(e.currentTarget.getBoundingClientRect());
     }
+  }
+
+  function deletePlayer(card: Scorecard, index: number) {
+    updateGame({ type: "delete_player", playerId: card.id });
+    showToast({
+      message: `Deleted ${card.playerName.trim() || "player"}`,
+      actionLabel: "Undo",
+      onAction: () => updateGame({ type: "restore_player", card, index }),
+    });
   }
 
   function addPlayer() {
@@ -298,7 +309,7 @@ export function PlayerListComponent({
               </div>
               <div
                 className={clsx("delete-button", { hidden: !editing })}
-                onClick={() => updateGame({ type: "delete_player", playerId: card.id })}
+                onClick={() => deletePlayer(card, index)}
               >
                 <span className="material-symbols-outlined">delete</span>
               </div>

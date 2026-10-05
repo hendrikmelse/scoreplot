@@ -1,0 +1,94 @@
+@use "../../Colors.scss" as *;
+
+.toasts {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  z-index: 20; // Above everything, including the color picker
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  pointer-events: none; // Only the toasts themselves can be pressed, not the space around them
+}
+
+.toast {
+  max-width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 18px;
+  background-color: $gray-3;
+  border: 1px solid $gray-5;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(black, 0.6);
+  color: $light-elements;
+  font-size: 15pt;
+  pointer-events: auto;
+  animation: toast-in 160ms ease-out;
+
+  .toast-message {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    min-height: 44px; // Big enough to tap
+    background: none;
+    border: 0;
+    border-radius: 10px;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover {
+      background-color: rgba(white, 0.08);
+    }
+
+    &:active {
+      background-color: rgba(white, 0.16);
+    }
+
+    &:focus-visible {
+      outline: 2px solid $light-elements;
+      outline-offset: -2px;
+    }
+  }
+
+  .toast-action {
+    padding: 0 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .toast-dismiss {
+    width: 44px;
+    padding: 0;
+    color: rgba($light-elements, 0.6);
+
+    span {
+      font-size: 22px;
+    }
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

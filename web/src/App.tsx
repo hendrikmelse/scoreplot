@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Routes, Route, useSearchParams } from "react-router-dom";
 import { usePersistentGame } from "@/usePersistentGame";
 import { GameContext } from "@/GameContext";
+import { ToastProvider } from "@/components/toast/ToastProvider";
 import { TitlePage } from "@/components/title-page/TitlePage";
 import { GamePlayPage } from "@/components/game-play-page/GamePlayPage";
 
@@ -15,10 +16,12 @@ export default function App() {
 
   return (
     <GameContext value={{ game, updateGame, hasGame }}>
-      <Routes>
-        <Route path="/" element={<TitlePage />} />
-        <Route path="/play/" element={<GamePlayPage />} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route path="/" element={<TitlePage />} />
+          <Route path="/play/" element={<GamePlayPage />} />
+        </Routes>
+      </ToastProvider>
     </GameContext>
   );
 }

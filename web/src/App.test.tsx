@@ -1061,3 +1061,168 @@ describe("saving the game", () => {
     });
   });
 });
+
+describe("undoing", () => {
+  const toastMessages = () =>
+    Array.from(document.querySelectorAll(".toast-message")).map((el) => el.textContent);
+  const names = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll<HTMLInputElement>(".player-name-input")).map(
+      (input) => input.value,
+    );
+
+  describe("deleting a player", () => {
+    /** A game with three players: Player 1 scored 4, Player 2 scored 5, and Player 3 scored 6 */
+    async function threePlayers() {
+      const user = userEvent.setup();
+      const view = renderApp("/play/");
+      await user.click(view.container.querySelector(".button-edit")!);
+      await user.click(view.container.querySelector(".add-player-button")!);
+      await user.click(view.container.querySelector(".add-player-button")!);
+      await user.click(view.container.querySelector(".button-edit")!);
+      for (const score of ["4", "5", "6"]) {
+        fireEvent.keyDown(window, { key: score });
+        fireEvent.keyDown(window, { key: "Enter" });
+      }
+      await user.click(view.container.querySelector(".button-edit")!);
+      return { user, ...view };
+    }
+
+    it("says so, with a way to undo it", async () => {
+      const { user, container } = await threePlayers();
+
+      await user.click(container.querySelectorAll(".delete-button")[1]!);
+
+      expect(toastMessages()).toEqual(["Deleted Player 2"]);
+      expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+      expect(names(container)).toEqual(["Player 1", "Player 3"]);
+    });
+
+    it("puts the player back in the same place, with their scores and color", async () => {
+      const { user, container } = await threePlayers();
+      const colorBefore =
+        container.querySelectorAll<HTMLElement>(".player-color")[1]!.style.backgroundColor;
+
+      await user.click(container.querySelectorAll(".delete-button")[1]!);
+      await user.click(screen.getByRole("button", { name: "Undo" }));
+
+      expect(names(container)).toEqual(["Player 1", "Player 2", "Player 3"]);
+      expect(
+        container.querySelectorAll<HTMLElement>(".player-color")[1]!.style.backgroundColor,
+      ).toBe(colorBefore);
+      await user.click(container.querySelector(".button-edit")!);
+      expect(shownScores(container)).toEqual(["4", "5", "6"]);
+      expect(toastMessages()).toEqual([]);
+    });
+
+    it("can undo several deletions, one at a time", async () => {
+      const { user, container } = await threePlayers();
+
+      await user.click(container.querySelectorAll(".delete-button")[0]!); // Player 1
+      await user.click(container.querySelectorAll(".delete-button")[0]!); // Player 2
+      expect(toastMessages()).toEqual(["Deleted Player 1", "Deleted Player 2"]);
+
+      await user.click(screen.getAllByRole("button", { name: "Undo" })[1]!); // Undo Player 2
+      expect(names(container)).toEqual(["Player 2", "Player 3"]);
+      expect(toastMessages()).toEqual(["Deleted Player 1"]);
+
+      await user.click(screen.getByRole("button", { name: "Undo" })); // Undo Player 1
+      expect(names(container)).toEqual(["Player 1", "Player 2", "Player 3"]);
+    });
+
+    it("is saved, and so is the undoing", async () => {
+      const { user, container } = await threePlayers();
+      const saved = () =>
+        JSON.parse(localStorage.getItem("scorekeeper.game")!).game.scorecards.length;
+
+      await user.click(container.querySelectorAll(".delete-button")[2]!);
+      expect(saved()).toBe(2);
+      await user.click(screen.getByRole("button", { name: "Undo" }));
+      expect(saved()).toBe(3);
+    });
+  });
+
+  describe("starting a new game", () => {
+    /** The title page, after playing a game called Rummy in which Player 1 scored 8 */
+    async function afterPlayingRummy() {
+      const user = userEvent.setup();
+      const first = renderApp("/play/");
+      await user.click(first.container.querySelector(".button-edit")!);
+      await user.clear(first.container.querySelector(".game-name-input")!);
+      await user.type(first.container.querySelector(".game-name-input")!, "Rummy");
+      await user.click(first.container.querySelector(".button-edit")!);
+      fireEvent.keyDown(window, { key: "8" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      first.unmount();
+      return { user, ...renderApp("/") };
+    }
+
+    it("says so, with a way to undo it, over the game that was started", async () => {
+      const { user, container } = await afterPlayingRummy();
+
+      await user.click(screen.getByText("Start New Game"));
+
+      expect(toastMessages()).toEqual(["Started a new game"]);
+      expect(container.querySelector(".game-play-background")).not.toBeNull();
+      expect(container.querySelectorAll(".player")).toHaveLength(1);
+      expect(shownScores(container)).toEqual(["0"]);
+    });
+
+    it("brings back the game that was there before", async () => {
+      const { user, container } = await afterPlayingRummy();
+      const savedName = () => JSON.parse(localStorage.getItem("scorekeeper.game")!).game.name;
+
+      await user.click(screen.getByText("Start New Game"));
+      expect(savedName()).toBe("New Game");
+      await user.click(screen.getByRole("button", { name: "Undo" }));
+
+      expect(savedName()).toBe("Rummy");
+      await user.click(container.querySelector(".button-edit")!); // Out of edit mode, as new games start in it
+      expect(shownScores(container)).toEqual(["8"]);
+      expect(container.querySelector(".game-name-label")!.textContent).toBe("Rummy");
+    });
+
+    it("does not bother when there was nothing to lose", async () => {
+      const user = userEvent.setup();
+      renderApp("/");
+      await user.click(screen.getByText("Start New Game"));
+      expect(toastMessages()).toEqual([]);
+    });
+
+    it("does not bother when the game had not been touched", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/");
+      await user.click(screen.getByText("Start New Game")); // A game, but a blank one
+      await user.click(container.querySelector(".button-home")!);
+      await user.click(screen.getByText("Start New Game"));
+      expect(toastMessages()).toEqual([]);
+    });
+  });
+});
+
+describe("pressing a toast while editing", () => {
+  it("does not leave edit mode, so that you can go on editing after an Undo", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".add-player-button")!);
+
+    await user.click(container.querySelectorAll(".delete-button")[1]!);
+    expect(container.querySelector(".toast")).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+
+    expect(container.querySelectorAll(".player.editing")).toHaveLength(2);
+    expect(container.querySelector(".add-player-button")).not.toBeNull();
+  });
+
+  it("still leaves edit mode for a press anywhere else", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".add-player-button")!);
+    await user.click(container.querySelectorAll(".delete-button")[1]!);
+
+    await user.click(container.querySelector(".content-section")!);
+
+    expect(container.querySelector(".player.editing")).toBeNull();
+  });
+});

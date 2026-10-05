@@ -53,6 +53,8 @@ export function GamePlayPage() {
 
     function onPointerDown(event: PointerEvent) {
       const target = event.target as Node;
+      // Pressing a toast (like Undo, after deleting a player) is part of editing, not leaving it
+      if (target instanceof Element && target.closest(".toasts")) return;
       if (
         !gameNameRef.current?.contains(target) &&
         !playerListRef.current?.contains(target) &&
