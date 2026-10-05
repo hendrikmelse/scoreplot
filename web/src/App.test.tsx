@@ -182,6 +182,73 @@ describe("game play page", () => {
     expect(container.querySelector(".plot-scores-content")).not.toBeNull();
   });
 
+  describe("score table", () => {
+    /** Two players; Player 1 scores 5 then -2, Player 2 scores 3 then 4. Ends on the table. */
+    async function playTwoRounds() {
+      const user = userEvent.setup();
+      const view = renderApp();
+      await addSecondPlayer(user, view.container);
+      for (const keys of [["5"], ["3"]]) {
+        for (const key of keys) fireEvent.keyDown(window, { key });
+        fireEvent.keyDown(window, { key: "Enter" });
+      }
+      fireEvent.keyDown(window, { key: "ArrowRight" });
+      for (const keys of [["-", "2"], ["4"]]) {
+        for (const key of keys) fireEvent.keyDown(window, { key });
+        fireEvent.keyDown(window, { key: "Enter" });
+      }
+      await user.click(view.container.querySelectorAll(".buttons-section button")[2]!);
+      return { user, ...view };
+    }
+
+    const texts = (els: NodeListOf<Element>) => Array.from(els).map((el) => el.textContent);
+
+    it("shows a row per round, with round labels, player headers and totals", async () => {
+      const { container } = await playTwoRounds();
+
+      expect(texts(container.querySelectorAll(".player-header"))).toEqual(["Player 1", "Player 2"]);
+      expect(texts(container.querySelectorAll("tbody .round-label"))).toEqual(["Start", "1", "2"]);
+      expect(texts(container.querySelectorAll("tbody tr:nth-child(2) .score-cell"))).toEqual([
+        "5",
+        "3",
+      ]);
+      expect(texts(container.querySelectorAll("tbody tr:nth-child(3) .score-cell"))).toEqual([
+        "-2",
+        "4",
+      ]);
+      expect(texts(container.querySelectorAll(".total-cell"))).toEqual(["3", "7"]);
+    });
+
+    it("marks negative scores and colors each header with its player's color", async () => {
+      const { container } = await playTwoRounds();
+
+      expect(texts(container.querySelectorAll(".score-cell.negative"))).toEqual(["-2"]);
+      const headers = container.querySelectorAll<HTMLElement>(".player-header");
+      expect(headers[0]!.style.borderBottomColor).not.toBe(headers[1]!.style.borderBottomColor);
+    });
+
+    it("jumps to a score on the keypad when its cell is clicked", async () => {
+      const { user, container } = await playTwoRounds();
+
+      await user.click(container.querySelectorAll("tbody tr:nth-child(2) .score-cell")[1]!);
+
+      expect(container.querySelector(".keypad")).not.toBeNull();
+      expect(container.querySelector(".round-label")!.textContent).toBe("Round 1");
+      expect(container.querySelector(".player.selected")!.textContent).toContain("Player 2");
+    });
+
+    it("says so when there are no players", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".delete-button")!);
+      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelectorAll(".buttons-section button")[2]!);
+
+      expect(screen.getByText("No players")).toBeTruthy();
+    });
+  });
+
   it("can switch to the plot after deleting every player", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();

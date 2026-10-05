@@ -1,63 +1,150 @@
 @use "../../../Colors.scss" as *;
 
+$round-column-width: 76px;
+$player-column-min-width: 110px;
+$muted: rgba($light-elements, 0.55);
+$negative: #f08a8a;
+
 .score-table-content {
-  margin: 40px;
+  height: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
 
-  .table-data {
-    display: flex;
-    flex-direction: row;
-    width: fit-content;
-    gap: 2px;
-    background-color: $gray-5;
+  &.score-table-empty {
+    align-items: center;
+    justify-content: center;
+    color: $muted;
+    font-size: 18pt;
+  }
 
-    .player-column {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      background-color: $gray-4;
+  // The table scrolls inside this box, with the header, round labels and totals staying in view
+  .table-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid $gray-3;
+    border-radius: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: $gray-5 transparent;
+  }
 
-      .player-name {
-        flex: 1;
-        padding: 4px 18px;
-        display: flex;
-        justify-content: center;
+  .score-table {
+    width: max(
+      100%,
+      calc(#{$round-column-width} + var(--player-count) * #{$player-column-min-width})
+    );
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: $light-elements;
+
+    th,
+    td {
+      padding: 0;
+      background-color: $gray-1;
+    }
+
+    // Sticky header row
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .corner,
+    .round-label {
+      position: sticky;
+      left: 0;
+      width: $round-column-width;
+      background-color: $gray-1;
+      border-right: 1px solid $gray-3;
+    }
+
+    .corner {
+      z-index: 3;
+      border-bottom: 3px solid $gray-5;
+    }
+
+    .player-header {
+      padding: 14px 10px 10px;
+      border-bottom: 3px solid $gray-5; // Color is set to the player's color inline
+      font-size: 16pt;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .round-label {
+      z-index: 1;
+      padding: 0 10px;
+      color: $muted;
+      font-size: 13pt;
+      font-weight: 600;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    tbody {
+      th,
+      td {
+        border-bottom: 1px solid $gray-2;
+      }
+
+      tr:nth-child(even) > * {
+        background-color: $gray-2;
+      }
+
+      // The starting scores are visually separated from the rounds
+      tr:first-child > * {
+        border-bottom: 1px solid $gray-4;
+      }
+    }
+
+    .score-cell,
+    .total-cell {
+      padding: 8px 10px;
+      text-align: center;
+      font-family: monospace;
+      font-size: 18pt;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+
+      &.negative {
+        color: $negative;
+      }
+    }
+
+    .score-cell {
+      cursor: pointer;
+      transition: background-color 40ms ease;
+
+      &:hover {
+        background-color: $gray-4;
+      }
+    }
+
+    // Sticky totals row
+    tfoot {
+      th,
+      td {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        background-color: $gray-3;
+        border-top: 2px solid $gray-5;
+      }
+
+      th.round-label {
+        z-index: 3; // Above the totals, because it is also sticky to the left
         color: $light-elements;
-        background-color: $gray-1;
         font-weight: bold;
-        font-size: 20pt;
       }
 
-      .table-divider {
-        width: 100%;
-        height: 3px;
-        background-color: $gray-1;
-        border-top: 1px solid $gray-5;
-        border-bottom: 1px solid $gray-5;
-      }
-
-      .score-box {
-        padding: 4px 8px;
-        background-color: $gray-1;
-
-        .score {
-          display: flex;
-          justify-content: center;
-          color: $light-elements;
-          background-color: $gray-1;
-          font-weight: 600;
-          font-size: 18pt;
-          font-family: monospace;
-          border-radius: 8px;
-        }
-
-        &:hover {
-          cursor: pointer;
-
-          .score {
-            background-color: $gray-3;
-            cursor: pointer;
-          }
-        }
+      .total-cell {
+        font-size: 18pt;
+        font-weight: bold;
       }
     }
   }
