@@ -102,16 +102,22 @@
       font-size: 18pt;
       font-weight: bold;
       flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .player-name-input {
       background-color: $gray-3;
       flex: 1;
+      width: 0; // Size comes from flex-grow only, not the input's intrinsic width
       min-width: 0;
       padding: 0 8px;
       border: 1px solid $gray-5;
       border-radius: 8px;
       color: $light-elements;
+      font-family: inherit;
       font-size: 18pt;
       font-weight: bold;
 
