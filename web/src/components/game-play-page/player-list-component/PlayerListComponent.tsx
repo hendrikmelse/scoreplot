@@ -48,6 +48,12 @@ export function PlayerListComponent({
 
   const showingRound = round !== TOTAL_SCORES;
 
+  // Keep the selected player in view as the keypad moves through the list
+  useEffect(() => {
+    if (editing || !showingRound) return;
+    playerRefs.current.get(selectedPlayerId)?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedPlayerId, editing, showingRound]);
+
   // While dragging a player, don't let the user select text, and stop the drag on release
   useEffect(() => {
     if (dragId === "") return;

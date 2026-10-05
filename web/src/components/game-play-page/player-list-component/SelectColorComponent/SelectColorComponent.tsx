@@ -7,6 +7,10 @@ import { hexToRgb, rgbToHex, type Rgb } from "@/utils/color";
 
 const channels: (keyof Rgb)[] = ["r", "g", "b"];
 
+// The picker's height, which it has to leave room for below itself, and how far to stay from the edge
+const pickerHeight = 102;
+const screenMargin = 12;
+
 export function SelectColorComponent({
   currentColor,
   position,
@@ -48,7 +52,11 @@ export function SelectColorComponent({
         style={{
           position: "absolute",
           left: position.x + 48,
-          top: position.y - 35,
+          // Next to the color, but not so low that the bottom of the picker is off the screen
+          top: Math.max(
+            screenMargin,
+            Math.min(position.y - 35, window.innerHeight - pickerHeight - screenMargin),
+          ),
         }}
       >
         <div className="default-colors-section">

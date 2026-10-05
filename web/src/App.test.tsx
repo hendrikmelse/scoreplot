@@ -328,6 +328,108 @@ describe("game play page", () => {
     });
   });
 
+  describe("player list", () => {
+    afterEach(() => {
+      // jsdom doesn't implement scrollIntoView, so these tests add (and then remove) a fake
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    });
+
+    function spyOnScrollIntoView() {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      return scrollIntoView;
+    }
+
+    it("keeps the add player button outside the scrolling list, so it's always reachable", () => {
+      const { container } = renderApp();
+      const list = container.querySelector(".player-list")!;
+      const addRow = container.querySelector(".add-player-row")!;
+
+      expect(list.contains(addRow)).toBe(false);
+      expect(addRow.parentElement).toBe(list.parentElement);
+      expect(container.querySelector(".round-buttons")!.parentElement).toBe(list.parentElement);
+    });
+
+    it("scrolls the next player into view when the keypad moves on to them", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      await addSecondPlayer(user, container);
+      const scrollIntoView = spyOnScrollIntoView();
+
+      fireEvent.keyDown(window, { key: "ArrowDown" });
+
+      const rows = container.querySelectorAll(".player");
+      const lastCall = scrollIntoView.mock.contexts.length - 1;
+      expect(scrollIntoView.mock.contexts[lastCall]).toBe(rows[1]);
+      expect(scrollIntoView.mock.calls[lastCall]).toEqual([{ block: "nearest" }]);
+    });
+
+    it("scrolls to the player entered on, after a score moves the selection along", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      await addSecondPlayer(user, container);
+      const scrollIntoView = spyOnScrollIntoView();
+
+      // Player 1 scores, so Player 2 is selected next
+      fireEvent.keyDown(window, { key: "4" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      const rows = container.querySelectorAll(".player");
+      expect(scrollIntoView.mock.contexts.at(-1)).toBe(rows[1]);
+    });
+
+    it("doesn't scroll around in edit mode", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      await user.click(container.querySelector(".button-edit")!);
+      const scrollIntoView = spyOnScrollIntoView();
+
+      fireEvent.keyDown(window, { key: "ArrowDown" });
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    describe("color picker", () => {
+      // jsdom has no layout, so put the player's color swatch where the test wants it on the screen
+      async function openPickerWithSwatchAt(y: number) {
+        const user = userEvent.setup();
+        const view = renderApp();
+        await user.click(view.container.querySelector(".button-edit")!);
+        const swatch = view.container.querySelector<HTMLElement>(".player-color")!;
+        swatch.getBoundingClientRect = () =>
+          ({
+            x: 40,
+            y,
+            left: 40,
+            top: y,
+            right: 80,
+            bottom: y + 40,
+            width: 40,
+            height: 40,
+          }) as DOMRect;
+        await user.click(swatch);
+        return view.container.querySelector<HTMLElement>(".color-select-content")!;
+      }
+
+      beforeEach(() => {
+        Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+      });
+
+      it("sits next to the color it is for", async () => {
+        const picker = await openPickerWithSwatchAt(300);
+        expect(picker.style.top).toBe("265px");
+      });
+
+      it("stays on the screen when the color is near the bottom", async () => {
+        const picker = await openPickerWithSwatchAt(780);
+        expect(picker.style.top).toBe("686px"); // 800 high, minus the picker's 102 and a 12 margin
+      });
+
+      it("stays on the screen when the color is near the top", async () => {
+        const picker = await openPickerWithSwatchAt(5);
+        expect(picker.style.top).toBe("12px");
+      });
+    });
+  });
+
   it("does not type into the keypad while renaming a player", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();

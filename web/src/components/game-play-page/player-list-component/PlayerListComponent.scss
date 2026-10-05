@@ -1,6 +1,10 @@
 @use "../../../Colors.scss" as *;
 
+$row-height: 40px; // Tall enough to tap
+$player-gap: 4px;
+
 .round-buttons {
+  flex: none;
   margin: 30px 40px 20px 20px;
   display: flex;
   justify-content: space-between;
@@ -8,6 +12,7 @@
 
   button {
     width: 80px;
+    height: 40px;
     background-color: $gray-2;
     border: 1px solid $gray-4;
     border-radius: 10px;
@@ -35,23 +40,27 @@
   }
 }
 
-$player-gap: 4px;
-
 .player-list {
   position: relative;
+  flex: 1; // Takes the room between the round buttons and the add player button...
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto; // ...and scrolls when there are more players than fit
+  scrollbar-width: thin;
+  scrollbar-color: $gray-5 transparent;
+  scrollbar-gutter: stable; // So that the rows are the same width whether or not there's a scrollbar
   display: flex;
   flex-direction: column;
   gap: $player-gap;
 
-  .player-placeholder {
-    height: 32px;
-  }
-
   .player {
     position: relative;
     isolation: isolate; // So the hit area below can sit behind this player's own content
+    flex: none; // Rows keep their height instead of being squashed to fit
     width: 100%;
+    height: $row-height; // The same in edit mode, where the name is in a box
     display: flex;
+    align-items: center;
     gap: 10px;
     cursor: pointer;
     transition:
@@ -93,9 +102,11 @@ $player-gap: 4px;
       color: $light-elements;
       cursor: grab;
       overflow: hidden;
-      width: 32px;
+      align-self: stretch;
+      width: $row-height;
       display: flex;
       align-items: center;
+      justify-content: center;
       transition: width 60ms ease;
 
       &.hidden {
@@ -108,7 +119,8 @@ $player-gap: 4px;
     }
 
     .player-color {
-      width: 32px;
+      align-self: stretch;
+      width: $row-height;
       border-radius: 2px;
     }
 
@@ -128,6 +140,7 @@ $player-gap: 4px;
       flex: 1;
       width: 0; // Size comes from flex-grow only, not the input's intrinsic width
       min-width: 0;
+      height: 32px;
       padding: 0 8px;
       border: 1px solid $gray-5;
       border-radius: 8px;
@@ -160,9 +173,11 @@ $player-gap: 4px;
       color: $light-elements;
       cursor: pointer;
       overflow: hidden;
-      width: 32px;
+      align-self: stretch;
+      width: $row-height;
       display: flex;
       align-items: center;
+      justify-content: center;
       transition: width 60ms ease;
 
       &.hidden {
@@ -177,7 +192,8 @@ $player-gap: 4px;
 }
 
 .add-player-row {
-  margin-top: 20px;
+  flex: none; // Always in view, below the scrolling list
+  margin: 12px 0 16px;
   display: flex;
   justify-content: center;
   transition: opacity 60ms ease;
@@ -189,6 +205,7 @@ $player-gap: 4px;
 
   .add-player-button {
     width: 80px;
+    height: 40px;
     background-color: $gray-2;
     border: 1px solid $gray-4;
     border-radius: 8px;
