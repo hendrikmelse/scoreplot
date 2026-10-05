@@ -40,8 +40,8 @@ describe("demo game", () => {
     expect(screen.getByText("Friday Night Rummy")).toBeTruthy();
     await user.click(screen.getByText("Continue Game"));
 
-    expect(container.querySelectorAll(".player")).toHaveLength(4);
     const demo = createDemoGame();
+    expect(container.querySelectorAll(".player")).toHaveLength(demo.scorecards.length);
     expect(container.querySelector(".round-label")!.textContent).toBe(`Round ${lastRound(demo)}`);
     expect(shownScores(container)).toEqual(
       demo.scorecards.map((card) => String(card.scores.at(-1))),
@@ -62,14 +62,42 @@ describe("demo game", () => {
     ).toEqual(demo.scorecards.map((card) => String(totalScore(card))));
   });
 
-  it("has players of clearly different skill, with the weakest dipping below zero", () => {
+  it("keeps the story: Priya wins easily, Hendrik and Sam follow, and Alida finishes last", () => {
     const demo = createDemoGame();
-    const totals = demo.scorecards.map(totalScore).sort((x, y) => y - x);
+    const total = (name: string) =>
+      totalScore(demo.scorecards.find((card) => card.playerName === name)!);
+    const others = demo.scorecards.map(totalScore).sort((x, y) => y - x);
 
-    // Every player is well clear of the next one
-    for (let i = 1; i < totals.length; i++) expect(totals[i - 1]! - totals[i]!).toBeGreaterThan(50);
-    // The weakest player's running total goes negative at some point, so the plot needs a range below 0
+    expect(total("Priya")).toBe(others[0]);
+    expect(total("Priya") - others[1]!).toBeGreaterThan(30);
+    expect(total("Priya")).toBeGreaterThan(total("Hendrik") + 60);
+    expect(total("Hendrik")).toBeGreaterThan(total("Sam") + 60);
+    expect(total("Sam")).toBeGreaterThan(total("Alida") + 60);
+    expect(total("Alida")).toBe(others.at(-1));
+  });
+
+  it("is very random from round to round, and the weakest player dips below zero", () => {
+    const demo = createDemoGame();
+    for (const card of demo.scorecards) {
+      const rounds = card.scores.slice(1);
+      expect(Math.max(...rounds) - Math.min(...rounds)).toBeGreaterThan(30);
+    }
+    expect(demo.scorecards.some((card) => card.scores.slice(1).some((score) => score < 0))).toBe(
+      true,
+    );
     expect(totalScoreRange(demo).min).toBeLessThan(0);
+  });
+
+  it("has enough players, with their own colors, that the score table scrolls sideways", () => {
+    const demo = createDemoGame();
+    expect(demo.scorecards).toHaveLength(12);
+    expect(new Set(demo.scorecards.map((card) => card.color)).size).toBe(12);
+    expect(new Set(demo.scorecards.map((card) => card.playerName)).size).toBe(12);
+  });
+
+  it("is the same every time", () => {
+    const scores = () => createDemoGame().scorecards.map((card) => card.scores);
+    expect(scores()).toEqual(scores());
   });
 
   it("is long enough for the score table to need scrolling", () => {
