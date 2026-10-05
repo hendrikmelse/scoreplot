@@ -80,6 +80,23 @@ export function GamePlayPage() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [editing, exitEditMode]);
 
+  // Let go of a pinned player when pressing anywhere outside the player list, other than on a
+  // button (a tab, say, which can decide for itself whether to let go)
+  useEffect(() => {
+    if (pinnedPlayerId === "") return;
+
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (playerListRef.current?.contains(target)) return;
+      if (target.closest("button")) return;
+      setPinnedPlayerId("");
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [pinnedPlayerId]);
+
   function saveScore(score: number) {
     if (!game.scorecards.some((card) => card.id === selectedPlayerId)) return;
     updateGame({ type: "add_score", playerId: selectedPlayerId, round: currentRound, score });

@@ -1700,3 +1700,112 @@ describe("picking out a player's line by pressing them", () => {
     expect(container.querySelector(".player.pinned")).toBeNull();
   });
 });
+
+describe("letting go of a pinned player by pressing elsewhere", () => {
+  /** Two players on the plot, with the second one pinned */
+  async function withSecondPlayerPinned() {
+    const user = userEvent.setup();
+    const view = renderApp("/play/");
+    await addSecondPlayer(user, view.container);
+    fireEvent.keyDown(window, { key: "5" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "3" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "2" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+    await user.click(view.container.querySelectorAll(".player")[1]!);
+    const pinned = () => view.container.querySelector(".player.pinned") !== null;
+    const highlightedLines = () =>
+      view.container.querySelectorAll(".plot-player.highlighted").length;
+    expect(pinned()).toBe(true);
+    return { user, pinned, highlightedLines, ...view };
+  }
+
+  it("happens when the plot is pressed", async () => {
+    const { user, container, pinned, highlightedLines } = await withSecondPlayerPinned();
+
+    await user.click(container.querySelector(".plot-area")!);
+
+    expect(pinned()).toBe(false);
+    expect(highlightedLines()).toBe(0);
+  });
+
+  it("happens when something else that is not a button is pressed", async () => {
+    const { user, container, pinned } = await withSecondPlayerPinned();
+
+    await user.click(container.querySelector(".game-name-label")!);
+
+    expect(pinned()).toBe(false);
+  });
+
+  it("happens for the empty space around the plot too", async () => {
+    const { user, container, pinned } = await withSecondPlayerPinned();
+
+    await user.click(container.querySelector(".plot-scores-content")!);
+
+    expect(pinned()).toBe(false);
+  });
+
+  it("happens when the plot is touched", async () => {
+    const { user, container, pinned, highlightedLines } = await withSecondPlayerPinned();
+    await user.unhover(container.querySelectorAll(".player")[1]!); // A touchscreen has no mouse to leave there
+
+    await user.pointer({ keys: "[TouchA]", target: container.querySelector(".plot-area")! });
+
+    expect(pinned()).toBe(false);
+    expect(highlightedLines()).toBe(0);
+  });
+
+  it("does not happen for a button, or for the icon or the label inside one", async () => {
+    const { user, pinned } = await withSecondPlayerPinned();
+    const plotTab = screen.getByRole("tab", { name: "Plot" });
+
+    await user.click(plotTab); // The button itself
+    expect(pinned()).toBe(true);
+    await user.click(plotTab.querySelector(".material-symbols-outlined")!); // The icon in the tab
+    expect(pinned()).toBe(true);
+    await user.click(plotTab.querySelector(".tab-label")!); // And its label
+    expect(pinned()).toBe(true);
+  });
+
+  it("does not happen for a press inside the player list", async () => {
+    const { user, container, pinned } = await withSecondPlayerPinned();
+
+    await user.click(container.querySelector(".round-label")!); // The heading of the list
+    expect(pinned()).toBe(true);
+    await user.click(container.querySelector(".player-list")!); // The list itself, between players
+    expect(pinned()).toBe(true);
+  });
+
+  it("does not happen for a press on another player, which pins that one instead", async () => {
+    const { user, container } = await withSecondPlayerPinned();
+
+    await user.click(container.querySelectorAll(".player")[0]!);
+
+    const pinnedRows = container.querySelectorAll(".player.pinned");
+    expect(pinnedRows).toHaveLength(1);
+    expect(pinnedRows[0]).toBe(container.querySelectorAll(".player")[0]);
+  });
+
+  it("does not stop the player being pinned again afterwards", async () => {
+    const { user, container, pinned } = await withSecondPlayerPinned();
+
+    await user.click(container.querySelector(".plot-area")!);
+    expect(pinned()).toBe(false);
+    await user.click(container.querySelectorAll(".player")[1]!);
+
+    expect(pinned()).toBe(true);
+  });
+
+  it("does nothing when nobody is pinned", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+
+    await user.click(container.querySelector(".game-name-label")!);
+
+    expect(container.querySelector(".player.pinned")).toBeNull();
+  });
+});
