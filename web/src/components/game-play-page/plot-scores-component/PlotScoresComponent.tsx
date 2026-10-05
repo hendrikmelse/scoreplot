@@ -1,6 +1,6 @@
 import "./PlotScoresComponent.scss";
 import { useContext, useEffect, useRef, useState } from "react";
-import { GameContext } from "@/App";
+import { GameContext } from "@/GameContext";
 import { partialScores } from "@/utils/Scores";
 import { Scorecard } from "@/Game";
 
@@ -15,34 +15,28 @@ export function PlotScoresComponent() {
   const plotAreaRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
-  const [minScore, setMinScore] = useState(0);
-  const [maxScore, setMaxScore] = useState(0);
-  const [maxRound, setMaxRound] = useState(0);
+  // Derived directly from the game, so they can never be out of sync with it
+  const maxScore = Math.max(
+    ...game.scorecards.map((scorecard) => Math.max(...partialScores(scorecard))),
+  );
+  const minScore = Math.min(
+    ...game.scorecards.map((scorecard) => Math.min(...partialScores(scorecard))),
+  );
+  const maxRound = Math.max(...game.scorecards.map((scorecard) => scorecard.scores.length - 1));
 
+  // Keep the canvas size in sync with the size of the plot area
   useEffect(() => {
-    setMaxScore(
-      Math.max(...game.scorecards.map((scorecard) => Math.max(...partialScores(scorecard)))),
-    );
-    setMinScore(
-      Math.min(...game.scorecards.map((scorecard) => Math.min(...partialScores(scorecard)))),
-    );
-    setMaxRound(Math.max(...game.scorecards.map((scorecard) => scorecard.scores.length - 1)));
+    const plotArea = plotAreaRef.current;
+    if (plotArea === null) return;
 
-    function measure() {
-      const rect = plotAreaRef.current!.getBoundingClientRect();
-      setCanvasSize((prev) => ({ width: Math.round(rect.width), height: Math.round(rect.height) }));
-    }
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (plotAreaRef.current !== null) {
-      observer.observe(plotAreaRef.current);
-    }
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]!.contentRect;
+      setCanvasSize({ width: Math.round(rect.width), height: Math.round(rect.height) });
+    });
+    observer.observe(plotArea);
 
     return () => observer.disconnect();
-  }, [game.scorecards]);
-
-  useEffect(() => {}, [game]);
+  }, []);
 
   function transform(score: number, round: number): Point {
     const roundStep = (canvasSize.width - 40) / maxRound;
@@ -68,6 +62,7 @@ export function PlotScoresComponent() {
     for (let i = 0; i < points.length - 1; ++i) {
       segments.push(
         <line
+          key={i}
           x1={points[i]?.x}
           y1={points[i]?.y}
           x2={points[i + 1]?.x}

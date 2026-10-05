@@ -1,6 +1,6 @@
 import "./ScoreTableComponent.scss";
 import { useContext } from "react";
-import { GameContext } from "@/App";
+import { GameContext } from "@/GameContext";
 
 export function ScoreTableComponent({
   onScoreSelected,

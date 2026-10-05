@@ -1,7 +1,7 @@
 import "./PlayerListComponent.scss";
 import clsx from "clsx";
 import React, { useContext, useLayoutEffect, useState, useRef, useEffect } from "react";
-import { GameContext } from "@/App";
+import { GameContext } from "@/GameContext";
 import { totalScore } from "@/utils/Scores";
 import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
 import { defaultColors } from "@/config";
@@ -24,23 +24,33 @@ export function PlayerListComponent({
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectingColorId, setSelectingColorId] = useState("");
   const [colorPickerPosition, setColorPickerPosition] = useState<DOMRect | null>(null);
-  const [editingPlayerNameId, setEditingPlayerNameId] = useState("");
+  const [editingPlayerNameIdState, setEditingPlayerNameId] = useState("");
   const [dragId, setDragId] = useState("");
   const dragStartY = useRef(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
   const { game, updateGame } = useContext(GameContext)!;
   const playerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const playerPositions = useRef<Map<string, DOMRect>>(new Map());
-  const playerSpacing = useRef(0);
+  const [playerSpacing, setPlayerSpacing] = useState(0);
+
+  // "next" means "the player that was just added", which is the last player once the game updates
+  const lastPlayerId = game.scorecards.at(-1)?.id;
+  const editingPlayerNameId =
+    editingPlayerNameIdState === "next" ? (lastPlayerId ?? "") : editingPlayerNameIdState;
 
   // Highlight text automatically when a player name is edited
-  const lastPlayerId = game.scorecards.at(-1)?.id;
   useEffect(() => {
-    if (editingPlayerNameId === "next") {
-      setEditingPlayerNameId(lastPlayerId ?? "");
-    }
     inputRef.current?.select();
-  }, [editingPlayerNameId, lastPlayerId]);
+  }, [editingPlayerNameId]);
+
+  // Don't let the user select text while dragging a player
+  useEffect(() => {
+    if (dragId === "") return;
+    document.body.style.userSelect = "none";
+    return () => {
+      document.body.style.userSelect = "";
+    };
+  }, [dragId]);
 
   // FLIP - animate changes in the player order when reordering the player list
   useLayoutEffect(() => {
@@ -122,12 +132,11 @@ export function PlayerListComponent({
     if (players.length >= 2) {
       const r1 = players[0]!.getBoundingClientRect();
       const r2 = players[1]!.getBoundingClientRect();
-      playerSpacing.current = r2.top - r1.top;
+      setPlayerSpacing(r2.top - r1.top);
     }
   }
 
   function startDragging(e: React.PointerEvent, id: string) {
-    document.body.style.userSelect = "none";
     playerRefs.current.get(id)!.style.removeProperty("transition");
     measurePlayerSpacing();
     measurePlayerPositions();
@@ -140,7 +149,6 @@ export function PlayerListComponent({
 
   function stopDragging() {
     console.log("Stopping dragging");
-    document.body.style.userSelect = "";
     setDragId("");
 
     window.removeEventListener("pointerup", stopDragging);
@@ -154,17 +162,17 @@ export function PlayerListComponent({
     const index = game.scorecards.findIndex((card) => card.id === dragId);
 
     // Figure out if we need to move the item's position
-    if (index > 0 && -deltaY > (playerSpacing.current * 3) / 5) {
+    if (index > 0 && -deltaY > (playerSpacing * 3) / 5) {
       measurePlayerPositions();
-      dragStartY.current -= playerSpacing.current;
+      dragStartY.current -= playerSpacing;
       updateGame({
         type: "move_player",
         playerId: dragId,
         direction: "up",
       });
-    } else if (index < game.scorecards.length - 1 && deltaY > (playerSpacing.current * 3) / 5) {
+    } else if (index < game.scorecards.length - 1 && deltaY > (playerSpacing * 3) / 5) {
       measurePlayerPositions();
-      dragStartY.current += playerSpacing.current;
+      dragStartY.current += playerSpacing;
       updateGame({
         type: "move_player",
         playerId: dragId,
@@ -212,7 +220,7 @@ export function PlayerListComponent({
               style={
                 card.id === dragId
                   ? {
-                      transform: `translateY(${Math.min(Math.max(dragDeltaY, index === 0 ? -playerSpacing.current / 6 : -Infinity), index === game.scorecards.length - 1 ? playerSpacing.current / 6 : Infinity)}px)`,
+                      transform: `translateY(${Math.min(Math.max(dragDeltaY, index === 0 ? -playerSpacing / 6 : -Infinity), index === game.scorecards.length - 1 ? playerSpacing / 6 : Infinity)}px)`,
                     }
                   : {}
               }

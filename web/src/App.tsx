@@ -1,14 +1,10 @@
 import "./App.scss";
 import { TitlePage } from "./components/title-page/TitlePage";
 import { Routes, Route } from "react-router-dom";
-import { createContext, useReducer } from "react";
-import { Game, gameReducer, UpdateGameAction } from "./Game";
+import { useReducer } from "react";
+import { gameReducer } from "./Game";
+import { GameContext } from "./GameContext";
 import { GamePlayPage } from "./components/game-play-page/GamePlayPage";
-
-export const GameContext = createContext<{
-  game: Game;
-  updateGame: React.Dispatch<UpdateGameAction>;
-} | null>(null);
 
 export default function App() {
   const [game, updateGame] = useReducer(gameReducer, {

@@ -1,7 +1,7 @@
 import "./SelectColorComponent.scss";
 import { defaultColors } from "@/config";
 import { useContext, useEffect, useState } from "react";
-import { GameContext } from "@/App";
+import { GameContext } from "@/GameContext";
 
 interface Color {
   r: number;

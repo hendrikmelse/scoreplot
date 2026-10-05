@@ -1,8 +1,8 @@
 import "./GamePlayPage.scss";
 import clsx from "clsx";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GameContext } from "@/App";
+import { GameContext } from "@/GameContext";
 import { EnterScoresComponent } from "./enter-scores-component/EnterScoresComponent";
 import { PlayerListComponent } from "./player-list-component/PlayerListComponent";
 import { PlotScoresComponent } from "./plot-scores-component/PlotScoresComponent";
@@ -12,7 +12,7 @@ export function GamePlayPage() {
   const navigate = useNavigate();
   const { game, updateGame } = useContext(GameContext)!;
   const [currentContent, setCurrentContent] = useState("keypad");
-  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   const [currentRound, setCurrentRound] = useState(1);
   const [editing, setEditing] = useState(false);
   const [editingGameName, setEditingGameName] = useState(false);
@@ -21,29 +21,37 @@ export function GamePlayPage() {
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const inputGameNameRef = useRef<HTMLInputElement>(null);
 
+  // Fall back to the first player if the selected player doesn't exist (e.g. it was deleted)
+  const firstPlayerId = game.scorecards[0]?.id ?? "";
+  const selectedPlayerId = game.scorecards.some((card) => card.id === selectedPlayerIdState)
+    ? selectedPlayerIdState
+    : firstPlayerId;
+
+  // When leaving edit mode, go back to the first player
+  const exitEditMode = useCallback(() => {
+    setEditing(false);
+    setSelectedPlayerId(firstPlayerId);
+  }, [firstPlayerId]);
+
   // Exit edit mode if user clicks anywhere other than the game name, the player list, or the edit button
   useEffect(() => {
-    function exitEditMode(event: MouseEvent) {
+    if (!editing) return;
+
+    function onPointerDown(event: MouseEvent) {
       if (
         !gameNameRef.current?.contains(event.target as Node) &&
         !playerListRef.current?.contains(event.target as Node) &&
         !editButtonRef.current?.contains(event.target as Node)
       ) {
-        setEditing(false);
+        exitEditMode();
       }
     }
 
-    document.addEventListener("pointerdown", exitEditMode);
+    document.addEventListener("pointerdown", onPointerDown);
     return () => {
-      document.removeEventListener("pointerdown", exitEditMode);
+      document.removeEventListener("pointerdown", onPointerDown);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!editing && game.scorecards[0]) {
-      setSelectedPlayerId(game.scorecards[0].id);
-    }
-  }, [editing, game.scorecards]);
+  }, [editing, exitEditMode]);
 
   // Highlight game name when edited
   useEffect(() => {
@@ -142,7 +150,7 @@ export function GamePlayPage() {
             <button
               className="button-edit"
               ref={editButtonRef}
-              onClick={() => setEditing(!editing)}
+              onClick={() => (editing ? exitEditMode() : setEditing(true))}
             >
               <span className="material-symbols-outlined">{editing ? "check" : "edit"}</span>
             </button>
