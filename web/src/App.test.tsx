@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
+import { createDemoGame } from "@/demoGame";
+import { lastRound, totalScore } from "@/utils/Scores";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -39,8 +41,11 @@ describe("demo game", () => {
     await user.click(screen.getByText("Continue Game"));
 
     expect(container.querySelectorAll(".player")).toHaveLength(4);
-    expect(container.querySelector(".round-label")!.textContent).toBe("Round 8");
-    expect(shownScores(container)).toEqual(["28", "0", "-8", "5"]);
+    const demo = createDemoGame();
+    expect(container.querySelector(".round-label")!.textContent).toBe(`Round ${lastRound(demo)}`);
+    expect(shownScores(container)).toEqual(
+      demo.scorecards.map((card) => String(card.scores.at(-1))),
+    );
   });
 
   it("shows the whole game in the score table", async () => {
@@ -50,10 +55,15 @@ describe("demo game", () => {
     await user.click(screen.getByText("Continue Game"));
     await user.click(container.querySelectorAll(".buttons-section button")[2]!);
 
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(8); // No Start row: all zeros
+    const demo = createDemoGame();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(lastRound(demo)); // No Start row: all zeros
     expect(
       Array.from(container.querySelectorAll(".total-cell")).map((el) => el.textContent),
-    ).toEqual(["75", "85", "83", "93"]);
+    ).toEqual(demo.scorecards.map((card) => String(totalScore(card))));
+  });
+
+  it("is long enough for the score table to need scrolling", () => {
+    expect(lastRound(createDemoGame())).toBeGreaterThan(15);
   });
 });
 
