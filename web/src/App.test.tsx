@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
@@ -385,6 +385,186 @@ describe("game play page", () => {
 
       fireEvent.keyDown(window, { key: "ArrowDown" });
       expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    describe("dragging a player to reorder", () => {
+      const rowHeight = 44; // Distance from one row to the next
+      const listTop = 100;
+      const listBottom = 500; // So the edges, where autoscroll starts, are 100-156 and 444-500
+
+      let scrollTop = 0;
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+        scrollTop = 0;
+      });
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      const rect = (top: number, height: number) =>
+        ({
+          x: 0,
+          y: top,
+          left: 0,
+          top,
+          right: 400,
+          bottom: top + height,
+          width: 400,
+          height,
+        }) as DOMRect;
+
+      /** The demo game in edit mode, with the list and its rows laid out as the test describes */
+      function openLongList() {
+        const view = renderApp("/?demo");
+        fireEvent.click(screen.getByText("Continue Game"));
+        fireEvent.click(view.container.querySelector(".button-edit")!);
+
+        const list = view.container.querySelector<HTMLElement>(".player-list")!;
+        list.getBoundingClientRect = () => rect(listTop, listBottom - listTop);
+        // jsdom doesn't scroll, so keep track of how far the list has been scrolled
+        Object.defineProperty(list, "scrollTop", {
+          get: () => scrollTop,
+          set: (value: number) => {
+            scrollTop = value;
+            list.dispatchEvent(new Event("scroll"));
+          },
+        });
+        const rows = () => Array.from(view.container.querySelectorAll<HTMLElement>(".player"));
+        for (const row of rows()) {
+          row.getBoundingClientRect = () => rect(rows().indexOf(row) * rowHeight, rowHeight - 4);
+        }
+        return view;
+      }
+
+      const names = (container: HTMLElement) =>
+        Array.from(container.querySelectorAll<HTMLInputElement>(".player-name-input")).map(
+          (input) => input.value,
+        );
+
+      /** Press on a player's drag handle, with the pointer at the given height on the screen */
+      function grab(container: HTMLElement, index: number, clientY: number) {
+        const handle = container.querySelectorAll(".drag-handle")[index]!;
+        fireEvent.pointerDown(handle, { clientY });
+      }
+
+      const holdFor = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+      const movePointerTo = (clientY: number) => fireEvent.pointerMove(window, { clientY });
+
+      it("scrolls the list when a player is dragged to the bottom edge", () => {
+        const { container } = openLongList();
+        grab(container, 0, 300);
+        movePointerTo(listBottom - 10);
+
+        holdFor(500);
+        expect(scrollTop).toBeGreaterThan(100);
+      });
+
+      it("scrolls the list up when a player is dragged to the top edge", () => {
+        const { container } = openLongList();
+        scrollTop = 600;
+        grab(container, 10, 300);
+        movePointerTo(listTop + 10);
+
+        holdFor(500);
+        expect(scrollTop).toBeLessThan(500);
+      });
+
+      it("doesn't scroll while the player is in the middle of the list", () => {
+        const { container } = openLongList();
+        grab(container, 0, 300);
+        movePointerTo(320);
+
+        holdFor(1000);
+        expect(scrollTop).toBe(0);
+      });
+
+      it("doesn't scroll at all when nobody is being dragged", () => {
+        openLongList();
+        holdFor(1000);
+        expect(scrollTop).toBe(0);
+      });
+
+      it("keeps scrolling, and faster, with the pointer past the end of the list", () => {
+        const first = openLongList();
+        grab(first.container, 0, 300);
+        movePointerTo(listBottom - 30);
+        holdFor(300);
+        const nearTheEdge = scrollTop;
+        first.unmount();
+
+        scrollTop = 0;
+        const second = openLongList();
+        grab(second.container, 0, 300);
+        movePointerTo(listBottom + 80); // Well below the list
+        holdFor(300);
+
+        expect(nearTheEdge).toBeGreaterThan(0);
+        expect(scrollTop).toBeGreaterThan(nearTheEdge);
+      });
+
+      it("stops scrolling when the player is let go of", () => {
+        const { container } = openLongList();
+        grab(container, 0, 300);
+        movePointerTo(listBottom - 10);
+        holdFor(200);
+        fireEvent.pointerUp(window);
+
+        const where = scrollTop;
+        holdFor(1000);
+        expect(scrollTop).toBe(where);
+      });
+
+      it("stops scrolling when the touch is cancelled too", () => {
+        const { container } = openLongList();
+        grab(container, 0, 300);
+        movePointerTo(listBottom - 10);
+        holdFor(200);
+        fireEvent.pointerCancel(window);
+
+        const where = scrollTop;
+        holdFor(1000);
+        expect(scrollTop).toBe(where);
+      });
+
+      it("moves the player down the list as it scrolls past, with the pointer standing still", () => {
+        const { container } = openLongList();
+        const before = names(container);
+        grab(container, 0, 300);
+        movePointerTo(listBottom - 10);
+
+        holdFor(3000); // Long enough to scroll the whole way
+
+        const after = names(container);
+        expect(after.at(-1)).toBe(before[0]);
+        // Everybody else just shuffled up one place each
+        expect(after.slice(0, -1)).toEqual(before.slice(1));
+      });
+
+      it("moves the player up the list when dragged to the top edge", () => {
+        const { container } = openLongList();
+        const before = names(container);
+        scrollTop = 800;
+        grab(container, 19, 300);
+        movePointerTo(listTop + 5);
+
+        holdFor(3000);
+
+        const after = names(container);
+        expect(after[0]).toBe(before.at(-1));
+        expect(after.slice(1)).toEqual(before.slice(0, -1));
+      });
+
+      it("still follows the pointer when the pointer has left the list", () => {
+        const { container } = openLongList();
+        grab(container, 0, 300);
+        // The pointer is moved on the window, not the list, so this only works if that's listened to
+        movePointerTo(300 + rowHeight); // A player changes place by one row for each move
+        movePointerTo(300 + rowHeight * 2);
+        holdFor(50);
+
+        expect(names(container).indexOf("Alida")).toBe(2);
+      });
     });
 
     describe("color picker", () => {

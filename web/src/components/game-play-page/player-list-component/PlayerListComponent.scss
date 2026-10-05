@@ -101,6 +101,7 @@ $player-gap: 4px;
     .drag-handle {
       color: $light-elements;
       cursor: grab;
+      touch-action: none; // Or a finger dragging it would scroll the list instead, and cancel the drag
       overflow: hidden;
       align-self: stretch;
       width: $row-height;

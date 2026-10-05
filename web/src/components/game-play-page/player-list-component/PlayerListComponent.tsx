@@ -4,6 +4,7 @@ import React, { useLayoutEffect, useState, useRef, useEffect } from "react";
 import { useGame } from "@/GameContext";
 import { nextPlayerColor } from "@/Game";
 import { totalScore } from "@/utils/Scores";
+import { autoScrollSpeed } from "@/utils/autoScroll";
 import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
 
 /** The round passed in when the player list should show total scores instead of a round */
@@ -40,7 +41,12 @@ export function PlayerListComponent({
   const [selectingColorId, setSelectingColorId] = useState("");
   const [colorPickerPosition, setColorPickerPosition] = useState<DOMRect | null>(null);
   const [dragId, setDragId] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  // While dragging, positions are measured down the whole list, scrolled out of view or not: the
+  // pointer's Y plus how far the list has scrolled. Then scrolling the list under a pointer that's
+  // standing still moves the dragged player along with it.
   const dragStartY = useRef(0);
+  const pointerY = useRef(0); // The latest position of the pointer on the screen, while dragging
   const [dragDeltaY, setDragDeltaY] = useState(0);
   const [playerSpacing, setPlayerSpacing] = useState(0);
   const playerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -54,19 +60,55 @@ export function PlayerListComponent({
     playerRefs.current.get(selectedPlayerId)?.scrollIntoView?.({ block: "nearest" });
   }, [selectedPlayerId, editing, showingRound]);
 
-  // While dragging a player, don't let the user select text, and stop the drag on release
+  // The drag effect below calls whichever version of `dragTo` was made by the latest render
+  const dragToRef = useRef<() => void>(() => {});
+
+  // While dragging a player: follow the pointer wherever it goes, scroll the list when it nears
+  // the top or bottom, don't let the user select text, and stop the drag on release
   useEffect(() => {
     if (dragId === "") return;
 
     const stopDragging = () => setDragId("");
+    const onPointerMove = (e: PointerEvent) => {
+      pointerY.current = e.clientY;
+      dragToRef.current();
+    };
+    // Scrolling moves the list under the pointer, which can mean the player has to change places
+    const onScroll = () => dragToRef.current();
+    const list = listRef.current;
+
+    let frame = 0;
+    let previousTime: number | undefined;
+    let carry = 0; // The part of a pixel that was too small to scroll last frame
+    const autoScroll = (time: number) => {
+      if (list && previousTime !== undefined) {
+        const { top, bottom } = list.getBoundingClientRect();
+        const speed = autoScrollSpeed(pointerY.current, top, bottom);
+        carry = speed === 0 ? 0 : carry + (speed * (time - previousTime)) / 1000;
+        const pixels = Math.trunc(carry);
+        if (pixels !== 0) {
+          carry -= pixels;
+          list.scrollTop += pixels;
+        }
+      }
+      previousTime = time;
+      frame = requestAnimationFrame(autoScroll);
+    };
+    frame = requestAnimationFrame(autoScroll);
+
     document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", stopDragging);
     window.addEventListener("pointercancel", stopDragging);
+    list?.addEventListener("scroll", onScroll);
 
     return () => {
+      cancelAnimationFrame(frame);
       document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", stopDragging);
       window.removeEventListener("pointercancel", stopDragging);
+      list?.removeEventListener("scroll", onScroll);
     };
   }, [dragId]);
 
@@ -135,16 +177,19 @@ export function PlayerListComponent({
     playerRefs.current.get(id)!.style.removeProperty("transition");
     measurePlayerSpacing();
     measurePlayerPositions();
-    dragStartY.current = e.clientY;
+    pointerY.current = e.clientY;
+    dragStartY.current = e.clientY + (listRef.current?.scrollTop ?? 0);
     setDragDeltaY(0);
     setDragId(id);
   }
 
-  function onDrag(e: React.PointerEvent) {
+  // Called whenever the pointer moves or the list scrolls during a drag
+  function dragTo() {
     if (dragId === "") return;
 
     // Compute how far we've dragged and where the dragged item currently is in the list
-    const deltaY = e.clientY - dragStartY.current;
+    const pointerInList = pointerY.current + (listRef.current?.scrollTop ?? 0);
+    const deltaY = pointerInList - dragStartY.current;
     const index = game.scorecards.findIndex((card) => card.id === dragId);
     const reorderDistance = (playerSpacing * 3) / 5;
 
@@ -160,8 +205,12 @@ export function PlayerListComponent({
     }
 
     // Need to recompute the delta here because the start Y may have been updated by a reorder
-    setDragDeltaY(e.clientY - dragStartY.current);
+    setDragDeltaY(pointerInList - dragStartY.current);
   }
+
+  useEffect(() => {
+    dragToRef.current = dragTo;
+  });
 
   // How far the dragged player at `index` is shifted. The first and last players can only be
   // pulled a little past the ends of the list.
@@ -189,7 +238,7 @@ export function PlayerListComponent({
           <span className="material-symbols-outlined">arrow_right_alt</span>
         </button>
       </div>
-      <div className="player-list" onPointerMove={onDrag}>
+      <div className="player-list" ref={listRef}>
         {game.scorecards.map((card, index) => (
           <React.Fragment key={card.id}>
             <div
