@@ -1,8 +1,12 @@
+@use "sass:color";
 @use "../../../Colors.scss" as *;
 
 // Everything scales with the smaller side of the screen, so that the keys stay big enough to hit
 // with a finger on smaller tablets, and don't get ridiculous on big screens.
 $gap: clamp(10px, 1.8vmin, 20px);
+
+// The accent for the Enter key: the light color of the text, toned down a bit
+$enter-key-color: color.mix($light-elements, $gray-3, 85%);
 
 .keypad {
   height: 100%;
@@ -69,8 +73,8 @@ $gap: clamp(10px, 1.8vmin, 20px);
 
     // The key that does the most important thing is also the most obvious
     &.key-enter {
-      background-color: $light-elements;
-      border-color: $light-elements;
+      background-color: $enter-key-color;
+      border-color: $enter-key-color;
       color: $background;
     }
 
