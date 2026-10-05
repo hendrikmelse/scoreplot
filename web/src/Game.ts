@@ -1,5 +1,6 @@
 import { produce } from "immer";
-import { defaultColors, fallbackPlayerColor } from "@/config";
+import { defaultColors } from "@/config";
+import { generatedColor } from "@/utils/color";
 
 // ========== Game interfaces ==========
 
@@ -25,19 +26,23 @@ export function createGame(): Game {
       {
         id: crypto.randomUUID(),
         playerName: "Player 1",
-        color: defaultColors[0] ?? fallbackPlayerColor,
+        color: defaultColors[0]!,
         scores: [0],
       },
     ],
   };
 }
 
-/** The first default color that no player is using yet */
+/** The first default color that no player is using yet, then generated colors once those run out */
 export function nextPlayerColor(game: Game): string {
-  return (
-    defaultColors.find((color) => !game.scorecards.some((card) => card.color === color)) ??
-    fallbackPlayerColor
-  );
+  const used = new Set(game.scorecards.map((card) => card.color));
+  const unused = defaultColors.find((color) => !used.has(color));
+  if (unused) return unused;
+
+  for (let i = defaultColors.length; ; i++) {
+    const color = generatedColor(i);
+    if (!used.has(color)) return color;
+  }
 }
 
 // ========== Dispatcher ==========

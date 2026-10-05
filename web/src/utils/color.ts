@@ -16,3 +16,17 @@ export function hexToRgb(hex: string): Rgb {
     b: parseInt(digits.slice(4, 6), 16),
   };
 }
+
+/** h in degrees, s and l between 0 and 1 */
+function hslToRgb(h: number, s: number, l: number): Rgb {
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const channel = (n: number) =>
+    Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+  return { r: channel(0), g: channel(8), b: channel(4) };
+}
+
+/** An endless supply of distinct, evenly spread colors: the hue steps by the golden angle */
+export function generatedColor(index: number): string {
+  return rgbToHex(hslToRgb((index * 137.508) % 360, 0.7, 0.55));
+}

@@ -1,5 +1,5 @@
 import { createGame, gameReducer, nextPlayerColor, type Game, type UpdateGameAction } from "@/Game";
-import { defaultColors, fallbackPlayerColor } from "@/config";
+import { defaultColors } from "@/config";
 
 function makeGame(scores: number[][] = [[0], [0]]): Game {
   return {
@@ -33,9 +33,19 @@ describe("nextPlayerColor", () => {
     expect(nextPlayerColor(makeGame())).toBe(defaultColors[2]);
   });
 
-  it("falls back once all default colors are used", () => {
-    const game = makeGame(defaultColors.map(() => [0]));
-    expect(nextPlayerColor(game)).toBe(fallbackPlayerColor);
+  it("keeps handing out distinct colors once all default colors are used", () => {
+    let game = makeGame(defaultColors.map(() => [0]));
+    for (let i = 0; i < 40; i++) {
+      const color = nextPlayerColor(game);
+      expect(color).toMatch(/^#[0-9a-f]{6}$/);
+      expect(game.scorecards.map((card) => card.color)).not.toContain(color);
+      game = reduce(game, {
+        type: "add_player",
+        newPlayerId: `extra${i}`,
+        newPlayerName: `Extra ${i}`,
+        newPlayerColor: color,
+      });
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import type { Game, Scorecard } from "@/Game";
-import { hexToRgb, rgbToHex } from "@/utils/color";
+import { generatedColor, hexToRgb, rgbToHex } from "@/utils/color";
 import { lastRound, partialScores, totalScore, totalScoreRange } from "@/utils/Scores";
 import { applyKey, parseScore } from "@/utils/scoreInput";
 
@@ -34,6 +34,18 @@ describe("color", () => {
     expect(hexToRgb("#4363d8")).toEqual({ r: 0x43, g: 0x63, b: 0xd8 });
     expect(rgbToHex({ r: 0x43, g: 0x63, b: 0xd8 })).toBe("#4363d8");
     expect(rgbToHex({ r: 0, g: 5, b: 255 })).toBe("#0005ff");
+  });
+});
+
+describe("generatedColor", () => {
+  it("produces valid hex colors, all different from each other", () => {
+    const colors = Array.from({ length: 100 }, (_, i) => generatedColor(i));
+    for (const color of colors) expect(color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(new Set(colors).size).toBe(100);
+  });
+
+  it("is deterministic", () => {
+    expect(generatedColor(8)).toBe(generatedColor(8));
   });
 });
 

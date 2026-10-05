@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
 import { createDemoGame } from "@/demoGame";
-import { lastRound, totalScore } from "@/utils/Scores";
+import { lastRound, totalScore, totalScoreRange } from "@/utils/Scores";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -60,6 +60,16 @@ describe("demo game", () => {
     expect(
       Array.from(container.querySelectorAll(".total-cell")).map((el) => el.textContent),
     ).toEqual(demo.scorecards.map((card) => String(totalScore(card))));
+  });
+
+  it("has players of clearly different skill, with the weakest dipping below zero", () => {
+    const demo = createDemoGame();
+    const totals = demo.scorecards.map(totalScore).sort((x, y) => y - x);
+
+    // Every player is well clear of the next one
+    for (let i = 1; i < totals.length; i++) expect(totals[i - 1]! - totals[i]!).toBeGreaterThan(50);
+    // The weakest player's running total goes negative at some point, so the plot needs a range below 0
+    expect(totalScoreRange(demo).min).toBeLessThan(0);
   });
 
   it("is long enough for the score table to need scrolling", () => {
