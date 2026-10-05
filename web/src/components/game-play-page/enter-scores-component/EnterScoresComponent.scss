@@ -6,7 +6,7 @@
 $gap: clamp(10px, 1.8vmin, 20px);
 
 // The accent for the Enter key: the light color of the text, toned down a bit
-$enter-key-color: color.mix($light-elements, $gray-3, 85%);
+$enter-key-color: color.mix($light-elements, $gray-3, 75%);
 
 .keypad {
   height: 100%;
