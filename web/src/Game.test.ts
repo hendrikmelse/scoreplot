@@ -21,11 +21,10 @@ function reduce(game: Game, ...actions: UpdateGameAction[]): Game {
 const names = (game: Game) => game.scorecards.map((card) => card.playerName);
 
 describe("createGame", () => {
-  it("creates two players with distinct ids and colors", () => {
+  it("creates a single player", () => {
     const game = createGame();
-    expect(game.scorecards).toHaveLength(2);
-    expect(new Set(game.scorecards.map((c) => c.id)).size).toBe(2);
-    expect(new Set(game.scorecards.map((c) => c.color)).size).toBe(2);
+    expect(game.scorecards).toHaveLength(1);
+    expect(game.scorecards[0]!.scores).toEqual([0]);
   });
 });
 

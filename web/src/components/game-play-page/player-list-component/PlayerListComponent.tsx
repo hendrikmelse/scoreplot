@@ -47,6 +47,7 @@ export function PlayerListComponent({
 
   // Highlight text automatically when a player name is edited
   useEffect(() => {
+    inputRef.current?.focus();
     inputRef.current?.select();
   }, [editingPlayerNameId]);
 

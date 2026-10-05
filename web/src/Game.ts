@@ -21,12 +21,14 @@ export function createGame(): Game {
   return {
     id: crypto.randomUUID(),
     name: "New Game",
-    scorecards: [1, 2].map((n) => ({
-      id: crypto.randomUUID(),
-      playerName: `Player ${n}`,
-      color: defaultColors[n - 1] ?? fallbackPlayerColor,
-      scores: [0],
-    })),
+    scorecards: [
+      {
+        id: crypto.randomUUID(),
+        playerName: "Player 1",
+        color: defaultColors[0] ?? fallbackPlayerColor,
+        scores: [0],
+      },
+    ],
   };
 }
 

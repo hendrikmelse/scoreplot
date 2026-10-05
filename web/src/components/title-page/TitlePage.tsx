@@ -8,7 +8,7 @@ export function TitlePage() {
 
   function startNewGame() {
     updateGame({ type: "new_game" });
-    navigate("/play");
+    navigate("/play", { state: { newGame: true } });
   }
 
   return (

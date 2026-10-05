@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
 
+type User = ReturnType<typeof userEvent.setup>;
+
 function renderApp(path = "/play/") {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -16,21 +18,55 @@ function shownScores(container: HTMLElement) {
   return Array.from(container.querySelectorAll(".player .score")).map((el) => el.textContent);
 }
 
+/** Add a second player ("Player 2") through edit mode, then leave edit mode */
+async function addSecondPlayer(user: User, container: HTMLElement) {
+  await user.click(container.querySelector(".button-edit")!);
+  await user.click(container.querySelector(".add-player-button")!);
+  await user.click(container.querySelector(".button-edit")!);
+}
+
 describe("title page", () => {
-  it("starts a new game", async () => {
+  it("starts a new game with one player, in edit mode", async () => {
     const user = userEvent.setup();
-    renderApp("/");
+    const { container } = renderApp("/");
+
     await user.click(screen.getByText("Start New Game"));
+
+    expect(container.querySelectorAll(".player")).toHaveLength(1);
     expect(screen.getByText("Player 1")).toBeTruthy();
+    expect(screen.getByText("Edit Players")).toBeTruthy();
+    expect(container.querySelector(".player.editing")).not.toBeNull();
+  });
+
+  it("starts a new game even after playing one", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/");
+
+    await user.click(screen.getByText("Start New Game"));
+    await user.click(container.querySelector(".add-player-button")!);
+    expect(container.querySelectorAll(".player")).toHaveLength(2);
+
+    await user.click(container.querySelector(".button-home")!);
+    await user.click(screen.getByText("Start New Game"));
+    expect(container.querySelectorAll(".player")).toHaveLength(1);
+  });
+
+  it("continues the current game outside of edit mode", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/");
+
+    await user.click(screen.getByText("Continue Game"));
+
+    expect(container.querySelector(".player.editing")).toBeNull();
+    expect(screen.queryByText("Edit Players")).toBeNull();
   });
 });
 
 describe("game play page", () => {
-  it("renders the players and the game name", () => {
+  it("renders the player and the game name", () => {
     renderApp();
     expect(screen.getByText("New Game")).toBeTruthy();
     expect(screen.getByText("Player 1")).toBeTruthy();
-    expect(screen.getByText("Player 2")).toBeTruthy();
   });
 
   it("selects the first player by default", () => {
@@ -48,11 +84,13 @@ describe("game play page", () => {
     await user.click(container.querySelector(".add-player-button")!);
 
     const input = container.querySelector<HTMLInputElement>(".player-name-input");
-    expect(input?.value).toBe("Player 3");
+    expect(input?.value).toBe("Player 2");
   });
 
-  it("enters scores with the keyboard and moves on to the next player", () => {
+  it("enters scores with the keyboard and moves on to the next player", async () => {
+    const user = userEvent.setup();
     const { container } = renderApp();
+    await addSecondPlayer(user, container);
 
     fireEvent.keyDown(window, { key: "5" });
     fireEvent.keyDown(window, { key: "Enter" });

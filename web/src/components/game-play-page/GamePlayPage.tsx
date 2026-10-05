@@ -1,7 +1,7 @@
 import "./GamePlayPage.scss";
 import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useGame } from "@/GameContext";
 import { lastRound } from "@/utils/Scores";
 import { EnterScoresComponent } from "./enter-scores-component/EnterScoresComponent";
@@ -19,11 +19,13 @@ const contentButtons: { content: Content; icon: string }[] = [
 
 export function GamePlayPage() {
   const navigate = useNavigate();
+  // "Start New Game" opens this page already in edit mode so the players can be set up
+  const startInEditMode = (useLocation().state as { newGame?: boolean } | null)?.newGame === true;
   const { game, updateGame } = useGame();
   const [currentContent, setCurrentContent] = useState<Content>("keypad");
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   const [currentRound, setCurrentRound] = useState(1);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startInEditMode);
   const [editingGameName, setEditingGameName] = useState(false);
   const gameNameRef = useRef<HTMLDivElement>(null);
   const playerListRef = useRef<HTMLDivElement>(null);
@@ -63,6 +65,7 @@ export function GamePlayPage() {
 
   // Highlight game name when edited
   useEffect(() => {
+    inputGameNameRef.current?.focus();
     inputGameNameRef.current?.select();
   }, [editingGameName]);
 
