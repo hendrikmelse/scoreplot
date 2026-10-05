@@ -1869,3 +1869,163 @@ describe("letting go of a pinned player by pressing elsewhere", () => {
     expect(container.querySelector(".player.pinned")).toBeNull();
   });
 });
+
+describe("flashing the row of a player whose score was updated", () => {
+  const flashing = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll(".player")).map(
+      (row) => row.classList.contains("flash-a") || row.classList.contains("flash-b"),
+    );
+  const enterScore = (score: string) => {
+    for (const key of score) fireEvent.keyDown(window, { key });
+    fireEvent.keyDown(window, { key: "Enter" });
+  };
+
+  async function twoPlayers() {
+    const user = userEvent.setup();
+    const view = renderApp("/play/");
+    await addSecondPlayer(user, view.container);
+    return { user, ...view };
+  }
+
+  it("does not flash anything to begin with", async () => {
+    const { container } = await twoPlayers();
+    expect(flashing(container)).toEqual([false, false]);
+  });
+
+  describe("after a score is entered on the keypad", () => {
+    it("flashes the row of the player the score is for, and no other", async () => {
+      const { container } = await twoPlayers();
+
+      enterScore("5");
+
+      expect(flashing(container)).toEqual([true, false]);
+    });
+
+    it("flashes each player as they score", async () => {
+      const { container } = await twoPlayers();
+
+      enterScore("5");
+      enterScore("3");
+
+      expect(flashing(container)).toEqual([true, true]);
+    });
+
+    it("starts the flash over for a player who scores again, with a different animation", async () => {
+      const { container } = await twoPlayers();
+      const first = () => container.querySelectorAll(".player")[0]!;
+
+      enterScore("5"); // Player 1
+      expect(first().classList.contains("flash-a")).toBe(true);
+      enterScore("3"); // Player 2
+      enterScore("2"); // Player 1 again, in the same round: a different score
+      expect(first().classList.contains("flash-b")).toBe(true);
+      expect(first().classList.contains("flash-a")).toBe(false);
+      enterScore("1"); // Player 2
+      enterScore("4"); // Player 1 again
+      expect(first().classList.contains("flash-a")).toBe(true);
+    });
+
+    it("flashes even if the score is the same as it was", async () => {
+      const { container } = await twoPlayers();
+      enterScore("0"); // A score of zero, which is what Player 1 already had
+      expect(flashing(container)).toEqual([true, false]);
+    });
+  });
+
+  describe("after a score is changed in the table", () => {
+    async function onTheTable() {
+      const view = await twoPlayers();
+      enterScore("5");
+      enterScore("3");
+      await view.user.click(screen.getByRole("tab", { name: "Table" }));
+      // Starting afresh, so that what is seen has come from editing the table
+      await view.user.click(screen.getByRole("tab", { name: "Plot" }));
+      await view.user.click(screen.getByRole("tab", { name: "Table" }));
+      return view;
+    }
+    const scoreButton = (container: HTMLElement, player: number) =>
+      container.querySelectorAll<HTMLElement>("tbody tr:nth-child(1) .score-button")[player]!;
+
+    it("flashes the row of the player whose score it is", async () => {
+      const { user, container } = await onTheTable();
+      const before = flashing(container); // Both flashed, from entering their scores
+
+      await user.click(scoreButton(container, 1));
+      await user.keyboard("9{Enter}");
+
+      expect(before).toEqual([true, true]);
+      const rows = container.querySelectorAll(".player");
+      expect(rows[1]!.classList.contains("flash-b")).toBe(true); // The second time for Player 2
+      expect(rows[0]!.classList.contains("flash-a")).toBe(true); // Still the first time for Player 1
+    });
+
+    it("does not when the score is left as it was, or cancelled, or is not a number", async () => {
+      const { user, container } = await onTheTable();
+      const classes = () =>
+        Array.from(container.querySelectorAll(".player")).map((row) => row.className);
+      const before = classes();
+
+      await user.click(scoreButton(container, 0));
+      await user.keyboard("5{Enter}"); // The same
+      await user.click(scoreButton(container, 0));
+      await user.keyboard("8{Escape}"); // Cancelled
+      await user.click(scoreButton(container, 0));
+      await user.keyboard("abc{Enter}"); // Not a number
+
+      expect(classes()).toEqual(before);
+    });
+  });
+
+  describe("not when nothing was updated", () => {
+    it("does not flash when moving between players", async () => {
+      const { container } = await twoPlayers();
+
+      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(window, { key: "ArrowUp" });
+
+      expect(flashing(container)).toEqual([false, false]);
+    });
+
+    it("does not flash when moving between rounds", async () => {
+      const { container } = await twoPlayers();
+
+      fireEvent.keyDown(window, { key: "ArrowRight" });
+      fireEvent.keyDown(window, { key: "ArrowLeft" });
+
+      expect(flashing(container)).toEqual([false, false]);
+    });
+
+    it("does not flash when a player is selected by pressing them", async () => {
+      const { user, container } = await twoPlayers();
+      await user.click(container.querySelectorAll(".player")[1]!);
+      expect(flashing(container)).toEqual([false, false]);
+    });
+
+    it("does not flash when players are changed, such as being renamed or added", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/play/");
+      await user.click(screen.getByRole("button", { name: "Edit players" }));
+      await user.type(container.querySelector(".player-name-input")!, "x");
+      await user.click(container.querySelector(".add-player-button")!);
+
+      expect(flashing(container)).toEqual([false, false]);
+    });
+
+    it("does not flash a number that is only being typed", async () => {
+      const { container } = await twoPlayers();
+      fireEvent.keyDown(window, { key: "7" });
+      expect(flashing(container)).toEqual([false, false]);
+    });
+
+    it("does not need a player to be there", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/play/");
+      await user.click(screen.getByRole("button", { name: "Edit players" }));
+      await user.click(container.querySelector(".delete-button")!);
+      await user.click(screen.getByRole("button", { name: "Done editing" }));
+
+      expect(() => enterScore("5")).not.toThrow();
+      expect(container.querySelectorAll(".player")).toHaveLength(0);
+    });
+  });
+});

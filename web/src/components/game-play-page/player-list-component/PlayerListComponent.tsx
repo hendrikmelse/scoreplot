@@ -31,6 +31,7 @@ export function PlayerListComponent({
   onNextRound,
   onHighlightPlayer,
   pinnedPlayerId,
+  flashCounts,
   editing,
 }: {
   round: number;
@@ -42,6 +43,11 @@ export function PlayerListComponent({
   onHighlightPlayer: (id: string) => void;
   /** The player whose line has been picked out on the plot by pressing them, if any */
   pinnedPlayerId: string;
+  /**
+   * How many times each player's row has been told to flash. A row flashes when its count goes
+   * up, however many times that has already happened.
+   */
+  flashCounts: Record<string, number>;
   editing: boolean;
 }) {
   const { game, updateGame } = useGame();
@@ -276,6 +282,9 @@ export function PlayerListComponent({
                 editing: editing,
                 dragging: dragId === card.id,
                 pinned: pinnedPlayerId === card.id,
+                // Two names that take turns, as it is a change of animation that restarts one
+                "flash-a": (flashCounts[card.id] ?? 0) % 2 === 1,
+                "flash-b": (flashCounts[card.id] ?? 0) > 0 && (flashCounts[card.id] ?? 0) % 2 === 0,
               })}
               onClick={() => onSelectPlayer(card.id)}
               // Only for a real mouse. A touchscreen pretends to hover over what was tapped, and

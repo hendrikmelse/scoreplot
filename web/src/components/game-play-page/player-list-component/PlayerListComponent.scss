@@ -6,6 +6,20 @@ $player-gap: 4px;
 // Empty space above the first player and below the last, inside the scrolling list. A player being
 // dragged can be pulled a little past either end, and the list would cut it off without this.
 $drag-room: 10px;
+$flash-duration: 800ms;
+$flash-color: rgba($light-elements, 0.35);
+
+@keyframes player-flash-a {
+  from {
+    background-color: $flash-color;
+  }
+}
+
+@keyframes player-flash-b {
+  from {
+    background-color: $flash-color;
+  }
+}
 
 .round-buttons {
   flex: none;
@@ -120,6 +134,24 @@ $drag-room: 10px;
     &.selected,
     &.pinned {
       background-color: $gray-4;
+    }
+
+    // Flashes when the player's score has just been updated. The animation only says where to
+    // start, so it fades back to whatever the row looks like otherwise. There are two copies of
+    // it so that a second update straight after the first can start it over.
+    &.flash-a {
+      animation: player-flash-a $flash-duration ease-out;
+    }
+
+    &.flash-b {
+      animation: player-flash-b $flash-duration ease-out;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      &.flash-a,
+      &.flash-b {
+        animation: none;
+      }
     }
 
     .spacer-left {

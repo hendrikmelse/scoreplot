@@ -31,6 +31,8 @@ export function GamePlayPage() {
   // that, of the one that was tapped (which is the only way to do it without a mouse)
   const [hoveredPlayerId, setHoveredPlayerId] = useState("");
   const [pinnedPlayerIdState, setPinnedPlayerId] = useState("");
+  // How many times each player's row has been made to flash, which the row restarts its flash by
+  const [flashCounts, setFlashCounts] = useState<Record<string, number>>({});
   // A new game starts with its name selected, ready to be typed over (only the first time it shows)
   const selectGameName = useRef(startInEditMode);
   const gameNameRef = useRef<HTMLDivElement>(null);
@@ -100,6 +102,12 @@ export function GamePlayPage() {
   function saveScore(score: number) {
     if (!game.scorecards.some((card) => card.id === selectedPlayerId)) return;
     updateGame({ type: "add_score", playerId: selectedPlayerId, round: currentRound, score });
+    flashPlayer(selectedPlayerId);
+  }
+
+  // Makes a player's row in the list flash, to show that their score has just been updated
+  function flashPlayer(playerId: string) {
+    setFlashCounts((counts) => ({ ...counts, [playerId]: (counts[playerId] ?? 0) + 1 }));
   }
 
   // Pressing a player selects them for entering scores, and on the plot, picks out their line
@@ -200,6 +208,7 @@ export function GamePlayPage() {
               onSelectPlayer={onPlayerPressed}
               onHighlightPlayer={setHoveredPlayerId}
               pinnedPlayerId={pinnedPlayerId}
+              flashCounts={flashCounts}
               onPrevRound={prevRound}
               onNextRound={nextRound}
               editing={editing}
@@ -242,7 +251,7 @@ export function GamePlayPage() {
         {currentContent === "plot" && (
           <PlotScoresComponent highlightedPlayerId={highlightedPlayerId} />
         )}
-        {currentContent === "table" && <ScoreTableComponent />}
+        {currentContent === "table" && <ScoreTableComponent onScoreChanged={flashPlayer} />}
       </div>
     </div>
   );
