@@ -240,6 +240,90 @@ describe("game play page", () => {
     expect(shownScores(container)).toEqual(["5", "-3"]);
   });
 
+  describe("keypad", () => {
+    const key = (container: HTMLElement, name: string) =>
+      container.querySelector<HTMLElement>(`.key-${name}`)!;
+
+    it("shows the score in a plain element, not an input a touchscreen could focus", () => {
+      const { container } = renderApp();
+      const display = container.querySelector(".score-display")!;
+
+      expect(display.tagName).toBe("DIV");
+      expect(display.getAttribute("role")).toBe("status");
+      expect(container.querySelector(".keypad input")).toBeNull();
+    });
+
+    it("has every key, with the icon keys named for screen readers", () => {
+      const { container } = renderApp();
+
+      expect(container.querySelectorAll(".keypad .key")).toHaveLength(14);
+      expect(screen.getByRole("button", { name: "Backspace" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Submit score" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "7" })).toBeTruthy();
+    });
+
+    it("types and submits when the keys are tapped", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      const display = () => container.querySelector(".score-display")!.textContent;
+
+      await user.click(key(container, "1"));
+      await user.click(key(container, "2"));
+      await user.click(key(container, "negate"));
+      expect(display()).toBe("-12");
+
+      await user.click(key(container, "backspace"));
+      expect(display()).toBe("-1");
+
+      await user.click(key(container, "enter"));
+      expect(display()).toBe("0");
+      expect(shownScores(container)[0]).toBe("-1");
+    });
+
+    it("shows a key as pressed for as long as it is being pressed", () => {
+      const { container } = renderApp();
+      const five = key(container, "5");
+
+      expect(five.classList.contains("pressed")).toBe(false);
+      fireEvent.pointerDown(five);
+      expect(five.classList.contains("pressed")).toBe(true);
+      fireEvent.pointerUp(five);
+      expect(five.classList.contains("pressed")).toBe(false);
+    });
+
+    it("stops looking pressed when the finger slides off or the touch is cancelled", () => {
+      const { container } = renderApp();
+      const five = key(container, "5");
+
+      fireEvent.pointerDown(five);
+      fireEvent.pointerLeave(five);
+      expect(five.classList.contains("pressed")).toBe(false);
+
+      fireEvent.pointerDown(five);
+      fireEvent.pointerCancel(five);
+      expect(five.classList.contains("pressed")).toBe(false);
+    });
+
+    it("only ever shows one key as pressed", () => {
+      const { container } = renderApp();
+
+      fireEvent.pointerDown(key(container, "1"));
+      fireEvent.pointerDown(key(container, "2"));
+
+      expect(container.querySelectorAll(".key.pressed")).toHaveLength(1);
+      expect(key(container, "2").classList.contains("pressed")).toBe(true);
+    });
+
+    it("does not enter anything when a press is cancelled before the tap completes", () => {
+      const { container } = renderApp();
+
+      fireEvent.pointerDown(key(container, "8"));
+      fireEvent.pointerCancel(key(container, "8")); // No click follows a cancelled touch
+
+      expect(container.querySelector(".score-display")!.textContent).toBe("0");
+    });
+  });
+
   it("does not type into the keypad while renaming a player", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();
@@ -248,7 +332,7 @@ describe("game play page", () => {
     await user.click(container.querySelector(".player-name-input")!);
     await user.keyboard("7{Enter}");
 
-    expect(container.querySelector<HTMLInputElement>(".score-input")!.value).toBe("0");
+    expect(container.querySelector(".score-display")!.textContent).toBe("0");
   });
 
   it("switches between the keypad, plot and table", async () => {

@@ -1,4 +1,5 @@
 import "./EnterScoresComponent.scss";
+import clsx from "clsx";
 import { useCallback, useEffect, useState } from "react";
 import { applyKey, parseScore } from "@/utils/scoreInput";
 
@@ -16,8 +17,18 @@ const keys = [
   { key: "+/-", label: "+/-", className: "key-negate" },
   { key: "0", label: "0", className: "key-0" },
   { key: ".", label: ".", className: "key-point" },
-  { key: "Backspace", icon: "backspace", className: "key-backspace large-icon" },
-  { key: "Enter", icon: "keyboard_return", className: "key-enter large-icon" },
+  {
+    key: "Backspace",
+    icon: "backspace",
+    label: "Backspace",
+    className: "key-backspace large-icon",
+  },
+  {
+    key: "Enter",
+    icon: "keyboard_return",
+    label: "Submit score",
+    className: "key-enter large-icon",
+  },
 ];
 
 export function EnterScoresComponent({
@@ -36,6 +47,9 @@ export function EnterScoresComponent({
   onPrevRound: () => void;
 }) {
   const [inputScore, setInputScore] = useState("0");
+  // The key a finger (or the mouse) is currently pressing. The `:active` style isn't dependable on
+  // touchscreens: it's delayed, and iOS only applies it if the page listens for touches.
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
 
   const pressKey = useCallback(
     (key: string) => {
@@ -82,9 +96,21 @@ export function EnterScoresComponent({
 
   return (
     <div className="keypad">
-      <input className="score-input" type="text" value={inputScore} readOnly />
+      {/* Not an <input>, so that tapping it on a touchscreen can't bring up the on-screen keyboard */}
+      <div className="score-display" role="status" aria-label="Score">
+        {inputScore}
+      </div>
       {keys.map(({ key, label, icon, className }) => (
-        <button key={key} className={`key ${className}`} onClick={() => pressKey(key)}>
+        <button
+          key={key}
+          className={clsx("key", className, { pressed: pressedKey === key })}
+          aria-label={icon ? label : undefined}
+          onClick={() => pressKey(key)}
+          onPointerDown={() => setPressedKey(key)}
+          onPointerUp={() => setPressedKey(null)}
+          onPointerCancel={() => setPressedKey(null)}
+          onPointerLeave={() => setPressedKey(null)}
+        >
           {icon ? <span className="material-symbols-outlined">{icon}</span> : label}
         </button>
       ))}
