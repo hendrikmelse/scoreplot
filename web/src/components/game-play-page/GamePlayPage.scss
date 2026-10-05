@@ -56,21 +56,6 @@
       align-items: center;
       justify-content: center;
 
-      .edit-game-name-button {
-        position: absolute;
-        top: 34px;
-        left: 10px;
-        width: 32px;
-        color: $light-elements;
-        cursor: pointer;
-        transition: width 60ms ease;
-        overflow: hidden;
-
-        &.hidden {
-          width: 0;
-        }
-      }
-
       .game-name-label {
         padding-bottom: 3px;
         color: $light-elements;
@@ -79,12 +64,20 @@
       }
 
       .game-name-input {
-        background-color: transparent;
-        width: 300px;
-        border: none;
+        background-color: $gray-3;
+        width: calc(100% - 20px);
+        min-width: 0;
+        padding: 0 8px 3px;
+        border: 1px solid $gray-5;
+        border-radius: 8px;
         color: $light-elements;
         font-size: 22pt;
         text-align: center;
+
+        &:focus {
+          outline: none;
+          border-color: $light-elements;
+        }
       }
     }
   }

@@ -33,7 +33,7 @@ describe("title page", () => {
     await user.click(screen.getByText("Start New Game"));
 
     expect(container.querySelectorAll(".player")).toHaveLength(1);
-    expect(screen.getByText("Player 1")).toBeTruthy();
+    expect(container.querySelector<HTMLInputElement>(".player-name-input")!.value).toBe("Player 1");
     expect(screen.getByText("Edit Players")).toBeTruthy();
     expect(container.querySelector(".player.editing")).not.toBeNull();
   });
@@ -83,8 +83,40 @@ describe("game play page", () => {
     await user.click(container.querySelector(".button-edit")!);
     await user.click(container.querySelector(".add-player-button")!);
 
-    const input = container.querySelector<HTMLInputElement>(".player-name-input");
-    expect(input?.value).toBe("Player 2");
+    const input = document.activeElement as HTMLInputElement;
+    expect(input.className).toBe("player-name-input");
+    expect(input.value).toBe("Player 2");
+  });
+
+  it("shows names as plain text normally and as text boxes in edit mode", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp();
+
+    expect(container.querySelector(".player-name-input")).toBeNull();
+    expect(container.querySelector(".game-name-input")).toBeNull();
+
+    await user.click(container.querySelector(".button-edit")!);
+    expect(container.querySelector<HTMLInputElement>(".player-name-input")!.value).toBe("Player 1");
+    expect(container.querySelector<HTMLInputElement>(".game-name-input")!.value).toBe("New Game");
+
+    await user.click(container.querySelector(".button-edit")!);
+    expect(container.querySelector(".player-name-input")).toBeNull();
+    expect(container.querySelector(".game-name-input")).toBeNull();
+  });
+
+  it("renames the game and players from their text boxes", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp();
+
+    await user.click(container.querySelector(".button-edit")!);
+    await user.clear(container.querySelector(".game-name-input")!);
+    await user.type(container.querySelector(".game-name-input")!, "Rummy");
+    await user.clear(container.querySelector(".player-name-input")!);
+    await user.type(container.querySelector(".player-name-input")!, "Ada{Enter}");
+    await user.click(container.querySelector(".button-edit")!);
+
+    expect(screen.getByText("Rummy")).toBeTruthy();
+    expect(screen.getByText("Ada")).toBeTruthy();
   });
 
   it("enters scores with the keyboard and moves on to the next player", async () => {
@@ -109,7 +141,7 @@ describe("game play page", () => {
     const { container } = renderApp();
 
     await user.click(container.querySelector(".button-edit")!);
-    await user.click(container.querySelector(".edit-name-button")!);
+    await user.click(container.querySelector(".player-name-input")!);
     await user.keyboard("7{Enter}");
 
     expect(container.querySelector<HTMLInputElement>(".score-input")!.value).toBe("0");

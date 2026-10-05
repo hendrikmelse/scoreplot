@@ -26,11 +26,9 @@ export function GamePlayPage() {
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   const [currentRound, setCurrentRound] = useState(1);
   const [editing, setEditing] = useState(startInEditMode);
-  const [editingGameName, setEditingGameName] = useState(false);
   const gameNameRef = useRef<HTMLDivElement>(null);
   const playerListRef = useRef<HTMLDivElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
-  const inputGameNameRef = useRef<HTMLInputElement>(null);
 
   // Fall back to the first player if the selected player doesn't exist (e.g. it was deleted)
   const firstPlayerId = game.scorecards[0]?.id ?? "";
@@ -63,12 +61,6 @@ export function GamePlayPage() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [editing, exitEditMode]);
 
-  // Highlight game name when edited
-  useEffect(() => {
-    inputGameNameRef.current?.focus();
-    inputGameNameRef.current?.select();
-  }, [editingGameName]);
-
   function saveScore(score: number) {
     if (!game.scorecards.some((card) => card.id === selectedPlayerId)) return;
     updateGame({ type: "add_score", playerId: selectedPlayerId, round: currentRound, score });
@@ -87,10 +79,6 @@ export function GamePlayPage() {
       setSelectedPlayerId(firstPlayerId);
     }
     setCurrentContent(content);
-  }
-
-  function onEditGameNameClick() {
-    if (editing) setEditingGameName(true);
   }
 
   // Select the player `offset` places after the selected one, wrapping around the list
@@ -134,27 +122,17 @@ export function GamePlayPage() {
             </button>
           </div>
           <div className="game-name-section" ref={gameNameRef}>
-            <div
-              className={clsx("edit-game-name-button", { hidden: !editing })}
-              onClick={onEditGameNameClick}
-            >
-              <span className="material-symbols-outlined">edit</span>
-            </div>
-            {editingGameName ? (
+            {editing ? (
               <input
                 className="game-name-input"
-                ref={inputGameNameRef}
                 value={game.name}
                 onChange={(e) => updateGame({ type: "update_name", newName: e.target.value })}
-                onBlur={() => setEditingGameName(false)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") setEditingGameName(false);
+                  if (e.key === "Enter") e.currentTarget.blur();
                 }}
               />
             ) : (
-              <div className="game-name-label" onClick={onEditGameNameClick}>
-                {game.name}
-              </div>
+              <div className="game-name-label">{game.name}</div>
             )}
           </div>
         </div>

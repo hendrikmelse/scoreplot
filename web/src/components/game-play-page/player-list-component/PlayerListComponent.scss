@@ -97,21 +97,6 @@
       border-radius: 2px;
     }
 
-    .edit-name-button {
-      color: $light-elements;
-      cursor: pointer;
-      overflow: hidden;
-      width: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: right;
-      transition: width 60ms ease;
-
-      &.hidden {
-        width: 0;
-      }
-    }
-
     .player-name {
       color: $light-elements;
       font-size: 18pt;
@@ -120,11 +105,20 @@
     }
 
     .player-name-input {
-      background-color: transparent;
-      border: none;
+      background-color: $gray-3;
+      flex: 1;
+      min-width: 0;
+      padding: 0 8px;
+      border: 1px solid $gray-5;
+      border-radius: 8px;
       color: $light-elements;
       font-size: 18pt;
-      width: 181px;
+      font-weight: bold;
+
+      &:focus {
+        outline: none;
+        border-color: $light-elements;
+      }
     }
 
     .score {

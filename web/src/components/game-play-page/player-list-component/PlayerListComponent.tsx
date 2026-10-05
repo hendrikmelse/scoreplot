@@ -32,10 +32,10 @@ export function PlayerListComponent({
   editing: boolean;
 }) {
   const { game, updateGame } = useGame();
-  const inputRef = useRef<HTMLInputElement>(null);
+  // The player whose name field should be focused as soon as it appears (a just-added player)
+  const focusPlayerId = useRef("");
   const [selectingColorId, setSelectingColorId] = useState("");
   const [colorPickerPosition, setColorPickerPosition] = useState<DOMRect | null>(null);
-  const [editingPlayerNameId, setEditingPlayerNameId] = useState("");
   const [dragId, setDragId] = useState("");
   const dragStartY = useRef(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
@@ -44,12 +44,6 @@ export function PlayerListComponent({
   const playerPositions = useRef<Map<string, DOMRect>>(new Map());
 
   const showingRound = round !== TOTAL_SCORES;
-
-  // Highlight text automatically when a player name is edited
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [editingPlayerNameId]);
 
   // While dragging a player, don't let the user select text, and stop the drag on release
   useEffect(() => {
@@ -93,12 +87,6 @@ export function PlayerListComponent({
     });
   }, [game.scorecards, dragId]);
 
-  function onEditNameClick(id: string) {
-    if (editing) {
-      setEditingPlayerNameId(editingPlayerNameId === id ? "" : id);
-    }
-  }
-
   function onColorClick(e: React.MouseEvent<HTMLDivElement>, id: string) {
     if (editing) {
       setSelectingColorId(id);
@@ -114,7 +102,7 @@ export function PlayerListComponent({
       newPlayerName: "Player " + (game.scorecards.length + 1),
       newPlayerColor: nextPlayerColor(game),
     });
-    setEditingPlayerNameId(newPlayerId); // Start editing the new player's name right away
+    focusPlayerId.current = newPlayerId; // Start editing the new player's name right away
   }
 
   // Measure the position of each player. Used for FLIP animations
@@ -220,16 +208,16 @@ export function PlayerListComponent({
                 style={{ backgroundColor: card.color }}
                 onClick={(e) => onColorClick(e, card.id)}
               />
-              <div
-                className={clsx("edit-name-button", { hidden: !editing })}
-                onClick={() => onEditNameClick(card.id)}
-              >
-                <span className="material-symbols-outlined">edit</span>
-              </div>
-              {editingPlayerNameId === card.id ? (
+              {editing ? (
                 <input
                   className="player-name-input"
-                  ref={inputRef}
+                  ref={(el) => {
+                    if (el && focusPlayerId.current === card.id) {
+                      focusPlayerId.current = "";
+                      el.focus();
+                      el.select();
+                    }
+                  }}
                   value={card.playerName}
                   onChange={(e) =>
                     updateGame({
@@ -238,15 +226,12 @@ export function PlayerListComponent({
                       newPlayerName: e.target.value,
                     })
                   }
-                  onBlur={() => setEditingPlayerNameId("")}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") setEditingPlayerNameId("");
+                    if (e.key === "Enter") e.currentTarget.blur();
                   }}
                 />
               ) : (
-                <div className="player-name" onClick={() => onEditNameClick(card.id)}>
-                  {card.playerName}
-                </div>
+                <div className="player-name">{card.playerName}</div>
               )}
               <div className={clsx("score", { hidden: editing })}>
                 {showingRound ? (card.scores[round] ?? 0) : totalScore(card)}
