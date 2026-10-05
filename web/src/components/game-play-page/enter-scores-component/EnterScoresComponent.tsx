@@ -88,8 +88,12 @@ export function EnterScoresComponent({
       if (target instanceof HTMLInputElement && !target.readOnly) return;
       if (target instanceof HTMLTextAreaElement) return;
 
-      // Otherwise a focused button would also be "clicked" by Enter
-      if (!editing) (document.activeElement as HTMLElement | null)?.blur();
+      // A button that the keyboard has been moved to is for pressing, not for entering a score. (A
+      // mouse click does not leave a button focused, so this is only ever somebody using Tab.)
+      const focused = document.activeElement;
+      if ((e.key === "Enter" || e.key === " ") && focused instanceof HTMLButtonElement) return;
+
+      if (!editing) (focused as HTMLElement | null)?.blur();
       pressKey(e.key);
     }
 
@@ -115,7 +119,13 @@ export function EnterScoresComponent({
           onPointerCancel={() => setPressedKey(null)}
           onPointerLeave={() => setPressedKey(null)}
         >
-          {icon ? <span className="material-symbols-outlined">{icon}</span> : label}
+          {icon ? (
+            <span className="material-symbols-outlined" aria-hidden="true">
+              {icon}
+            </span>
+          ) : (
+            label
+          )}
         </button>
       ))}
     </div>

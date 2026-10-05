@@ -1305,3 +1305,222 @@ describe("keypad caption", () => {
     expect(status.textContent).toBe("Player 1 · Round 10");
   });
 });
+
+describe("labelled buttons", () => {
+  describe("the tabs", () => {
+    it("are labelled with text, not just an icon", () => {
+      const { container } = renderApp("/play/");
+      const labels = Array.from(container.querySelectorAll(".buttons-section .tab-label")).map(
+        (label) => label.textContent,
+      );
+      expect(labels).toEqual(["Keypad", "Plot", "Table"]);
+    });
+
+    it("have names for assistive technology, and tooltips", () => {
+      renderApp("/play/");
+      for (const name of ["Keypad", "Plot", "Table"]) {
+        const tab = screen.getByRole("tab", { name });
+        expect(tab.getAttribute("title")).toBe(name);
+      }
+    });
+
+    it("do not have the icon's own name as part of theirs", () => {
+      const { container } = renderApp("/play/");
+      // Without this, a screen reader would say "dialpad Keypad"
+      for (const icon of container.querySelectorAll(
+        ".buttons-section .material-symbols-outlined",
+      )) {
+        expect(icon.getAttribute("aria-hidden")).toBe("true");
+      }
+      expect(screen.getByRole("tab", { name: "Keypad" })).toBeTruthy();
+    });
+
+    it("are a tab list, with the current one selected", async () => {
+      const user = userEvent.setup();
+      renderApp("/play/");
+      expect(screen.getByRole("tablist", { name: "View" })).toBeTruthy();
+      const selected = () =>
+        screen
+          .getAllByRole("tab")
+          .filter((tab) => tab.getAttribute("aria-selected") === "true")
+          .map((tab) => tab.textContent);
+
+      expect(selected()).toEqual(["dialpadKeypad"]);
+      await user.click(screen.getByRole("tab", { name: "Plot" }));
+      expect(selected()).toEqual(["stacked_line_chartPlot"]);
+      await user.click(screen.getByRole("tab", { name: "Table" }));
+      expect(selected()).toEqual(["tableTable"]);
+    });
+
+    it("lead to a panel for what they show", () => {
+      renderApp("/play/");
+      expect(screen.getByRole("tabpanel")).toBeTruthy();
+    });
+  });
+
+  describe("the other icon buttons", () => {
+    it("have names", () => {
+      renderApp("/play/");
+      expect(screen.getByRole("button", { name: "Home" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Edit players" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Previous round" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Next round" })).toBeTruthy();
+    });
+
+    it("say what the edit button does now", async () => {
+      const user = userEvent.setup();
+      renderApp("/play/");
+
+      await user.click(screen.getByRole("button", { name: "Edit players" }));
+      expect(screen.getByRole("button", { name: "Done editing" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Edit players" })).toBeNull();
+    });
+
+    it("name the add player button, which only exists for assistive technology in edit mode", async () => {
+      const user = userEvent.setup();
+      renderApp("/play/");
+
+      expect(screen.queryByRole("button", { name: "Add player" })).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Edit players" }));
+      expect(screen.getByRole("button", { name: "Add player" })).toBeTruthy();
+    });
+
+    it("keep the round buttons out of reach when they are not in use", async () => {
+      const user = userEvent.setup();
+      renderApp("/play/");
+      expect(
+        screen.getByRole("button", { name: "Next round" }).getAttribute("tabindex"),
+      ).toBeNull();
+
+      await user.click(screen.getByRole("tab", { name: "Plot" })); // Not showing a round
+      expect(screen.queryByRole("button", { name: "Next round" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Previous round" })).toBeNull();
+
+      await user.click(screen.getByRole("tab", { name: "Keypad" }));
+      await user.click(screen.getByRole("button", { name: "Edit players" })); // Editing, so no rounds
+      expect(screen.queryByRole("button", { name: "Next round" })).toBeNull();
+    });
+  });
+});
+
+describe("focus after pressing a button", () => {
+  // The browser draws a focus ring around a focused button as soon as a key (even Shift, for
+  // scrolling sideways) is pressed, so a button that was only clicked must not stay focused.
+  const focusedLabel = () => document.activeElement?.getAttribute("aria-label");
+
+  it("is let go of when a button is clicked with the mouse", async () => {
+    const user = userEvent.setup();
+    renderApp("/play/");
+
+    await user.click(screen.getByRole("tab", { name: "Table" }));
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("is let go of for every kind of button", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+
+    // Looked up one at a time, as some of them only exist once an earlier one has been pressed
+    const buttons = [
+      () => screen.getByRole("button", { name: "Edit players" }),
+      () => screen.getByRole("button", { name: "Done editing" }),
+      () => screen.getByRole("button", { name: "Next round" }),
+      () => container.querySelector<HTMLElement>(".key-5")!,
+    ];
+    for (const find of buttons) {
+      await user.click(find());
+      expect(document.activeElement).toBe(document.body);
+    }
+  });
+
+  it("is let go of when a button is tapped, too", async () => {
+    const user = userEvent.setup();
+    renderApp("/play/");
+
+    await user.pointer({ keys: "[TouchA]", target: screen.getByRole("tab", { name: "Plot" }) });
+
+    expect(document.activeElement).not.toBe(screen.getByRole("tab", { name: "Plot" }));
+  });
+
+  it("is kept by a button that is pressed with the keyboard, so that its focus ring stays", async () => {
+    const user = userEvent.setup();
+    renderApp("/play/");
+    const plot = screen.getByRole("tab", { name: "Plot" });
+
+    plot.focus();
+    await user.keyboard("{Enter}");
+
+    expect(document.activeElement).toBe(plot);
+    expect(plot.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("is not taken away from a text box that a click sends it to", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(screen.getByRole("button", { name: "Edit players" }));
+
+    await user.click(container.querySelector(".add-player-button")!); // Focuses the new name
+
+    expect(document.activeElement?.className).toBe("player-name-input");
+  });
+
+  it("does not matter to pressing something that is not a button", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(screen.getByRole("button", { name: "Edit players" }));
+    const name = container.querySelector<HTMLInputElement>(".player-name-input")!;
+
+    await user.click(name);
+
+    expect(document.activeElement).toBe(name);
+    expect(focusedLabel()).toBeNull();
+  });
+});
+
+describe("the keyboard and the keypad", () => {
+  it("presses a button that has been tabbed to, rather than entering a score", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    const plot = screen.getByRole("tab", { name: "Plot" });
+
+    fireEvent.keyDown(window, { key: "5" });
+    plot.focus();
+    await user.keyboard("{Enter}");
+
+    expect(container.querySelector(".plot-scores-content")).not.toBeNull(); // The tab worked
+    // And no score was entered along the way: the 5 is still waiting to be entered
+    await user.click(screen.getByRole("tab", { name: "Keypad" }));
+    expect(shownScores(container)).toEqual(["0"]);
+  });
+
+  it("presses a button with Space too", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+
+    screen.getByRole("tab", { name: "Table" }).focus();
+    await user.keyboard(" ");
+
+    expect(container.querySelector(".score-table-content")).not.toBeNull();
+  });
+
+  it("still enters the score with Enter when no button has been tabbed to", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+
+    await user.click(container.querySelector(".key-7")!); // A click, so nothing is left focused
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    expect(shownScores(container)).toEqual(["7"]);
+  });
+
+  it("presses a keypad key that has been tabbed to", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+
+    container.querySelector<HTMLElement>(".key-8")!.focus();
+    await user.keyboard("{Enter}");
+
+    expect(container.querySelector(".score-value")!.textContent).toBe("8");
+  });
+});

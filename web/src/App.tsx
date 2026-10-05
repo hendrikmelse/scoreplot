@@ -2,6 +2,7 @@ import "./App.scss";
 import { useState } from "react";
 import { Routes, Route, useSearchParams } from "react-router-dom";
 import { usePersistentGame } from "@/usePersistentGame";
+import { useBlurAfterPointerClick } from "@/useBlurAfterPointerClick";
 import { GameContext } from "@/GameContext";
 import { ToastProvider } from "@/components/toast/ToastProvider";
 import { TitlePage } from "@/components/title-page/TitlePage";
@@ -13,6 +14,7 @@ export default function App() {
   const [searchParams] = useSearchParams();
   const [demo] = useState(() => searchParams.has("demo"));
   const { game, updateGame, hasGame } = usePersistentGame(demo);
+  useBlurAfterPointerClick();
 
   return (
     <GameContext value={{ game, updateGame, hasGame }}>

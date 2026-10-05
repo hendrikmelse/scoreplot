@@ -11,6 +11,11 @@ import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponen
 /** The round passed in when the player list should show total scores instead of a round */
 const TOTAL_SCORES = -1;
 
+/** For a button that is hidden by being see-through: keep it out of the tab order and the accessibility tree too */
+function hiddenFromEveryone(hidden: boolean) {
+  return hidden ? { tabIndex: -1, "aria-hidden": true } : {};
+}
+
 function roundLabel(round: number, editing: boolean): string {
   if (editing) return "Edit Players";
   if (round === TOTAL_SCORES) return "Total Scores";
@@ -237,16 +242,26 @@ export function PlayerListComponent({
       <div className="round-buttons">
         <button
           className={clsx({ hidden: !showingRound || editing })}
+          aria-label="Previous round"
+          title="Previous round"
+          {...hiddenFromEveryone(!showingRound || editing)}
           onClick={() => onPrevRound()}
         >
-          <span className="material-symbols-outlined">arrow_left_alt</span>
+          <span className="material-symbols-outlined" aria-hidden="true">
+            arrow_left_alt
+          </span>
         </button>
         <div className="round-label">{roundLabel(round, editing)}</div>
         <button
           className={clsx({ hidden: !showingRound || editing })}
+          aria-label="Next round"
+          title="Next round"
+          {...hiddenFromEveryone(!showingRound || editing)}
           onClick={() => onNextRound()}
         >
-          <span className="material-symbols-outlined">arrow_right_alt</span>
+          <span className="material-symbols-outlined" aria-hidden="true">
+            arrow_right_alt
+          </span>
         </button>
       </div>
       <div className="player-list" ref={listRef}>
@@ -327,8 +342,16 @@ export function PlayerListComponent({
         ))}
       </div>
       <div className={clsx("add-player-row", { hidden: !editing })}>
-        <button className="add-player-button" onClick={addPlayer}>
-          <span className="material-symbols-outlined">add</span>
+        <button
+          className="add-player-button"
+          aria-label="Add player"
+          title="Add player"
+          {...hiddenFromEveryone(!editing)}
+          onClick={addPlayer}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            add
+          </span>
         </button>
       </div>
     </>

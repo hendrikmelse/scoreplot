@@ -11,10 +11,10 @@ import { ScoreTableComponent } from "./score-table-component/ScoreTableComponent
 
 type Content = "keypad" | "plot" | "table";
 
-const contentButtons: { content: Content; icon: string }[] = [
-  { content: "keypad", icon: "dialpad" },
-  { content: "plot", icon: "stacked_line_chart" },
-  { content: "table", icon: "table" },
+const contentButtons: { content: Content; icon: string; label: string }[] = [
+  { content: "keypad", icon: "dialpad", label: "Keypad" },
+  { content: "plot", icon: "stacked_line_chart", label: "Plot" },
+  { content: "table", icon: "table", label: "Table" },
 ];
 
 export function GamePlayPage() {
@@ -124,15 +124,26 @@ export function GamePlayPage() {
       <div className="left-section">
         <div className="top-left-section">
           <div className="top-buttons-section">
-            <button className="button-home" onClick={() => navigate("/")}>
-              <span className="material-symbols-outlined">home</span>
+            <button
+              className="button-home"
+              aria-label="Home"
+              title="Home"
+              onClick={() => navigate("/")}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">
+                home
+              </span>
             </button>
             <button
               className="button-edit"
+              aria-label={editing ? "Done editing" : "Edit players"}
+              title={editing ? "Done editing" : "Edit players"}
               ref={editButtonRef}
               onClick={() => (editing ? exitEditMode() : setEditing(true))}
             >
-              <span className="material-symbols-outlined">{editing ? "check" : "edit"}</span>
+              <span className="material-symbols-outlined" aria-hidden="true">
+                {editing ? "check" : "edit"}
+              </span>
             </button>
           </div>
           <div className="game-name-section" ref={gameNameRef}>
@@ -169,20 +180,26 @@ export function GamePlayPage() {
               editing={editing}
             />
           </div>
-          <div className="buttons-section">
-            {contentButtons.map(({ content, icon }) => (
+          <div className="buttons-section" role="tablist" aria-label="View">
+            {contentButtons.map(({ content, icon, label }) => (
               <button
                 key={content}
+                role="tab"
+                aria-selected={currentContent === content}
+                title={label}
                 className={clsx({ selected: currentContent === content })}
                 onClick={() => changeContent(content)}
               >
-                <span className="material-symbols-outlined">{icon}</span>
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  {icon}
+                </span>
+                <span className="tab-label">{label}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
-      <div className="content-section">
+      <div className="content-section" role="tabpanel">
         {currentContent === "keypad" && (
           <EnterScoresComponent
             caption={keypadCaption}
