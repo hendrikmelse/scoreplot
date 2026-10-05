@@ -35,17 +35,21 @@
   }
 }
 
+$player-gap: 4px;
+
 .player-list {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: $player-gap;
 
   .player-placeholder {
     height: 32px;
   }
 
   .player {
+    position: relative;
+    isolation: isolate; // So the hit area below can sit behind this player's own content
     width: 100%;
     display: flex;
     gap: 10px;
@@ -53,6 +57,17 @@
     transition:
       background-color 200ms ease,
       transform 150ms ease;
+
+    // Reaches halfway across the gap to the neighbouring players, so that there's nowhere between
+    // two players where the mouse isn't over one of them. It's invisible and doesn't change the
+    // size of the player: the highlight is drawn by the player's own background. It has to stay
+    // behind the player's content, or it would cover the buttons in edit mode.
+    &::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: (-$player-gap * 0.5) 0;
+    }
 
     &.dragging {
       z-index: 1;
