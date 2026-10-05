@@ -26,6 +26,8 @@ export function GamePlayPage() {
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   const [currentRound, setCurrentRound] = useState(1);
   const [editing, setEditing] = useState(startInEditMode);
+  // A new game starts with its name selected, ready to be typed over (only the first time it shows)
+  const selectGameName = useRef(startInEditMode);
   const gameNameRef = useRef<HTMLDivElement>(null);
   const playerListRef = useRef<HTMLDivElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
@@ -125,6 +127,13 @@ export function GamePlayPage() {
             {editing ? (
               <input
                 className="game-name-input"
+                ref={(el) => {
+                  if (el && selectGameName.current) {
+                    selectGameName.current = false;
+                    el.focus();
+                    el.select();
+                  }
+                }}
                 value={game.name}
                 onChange={(e) => updateGame({ type: "update_name", newName: e.target.value })}
                 onKeyDown={(e) => {

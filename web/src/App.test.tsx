@@ -38,6 +38,30 @@ describe("title page", () => {
     expect(container.querySelector(".player.editing")).not.toBeNull();
   });
 
+  it("starts a new game with the game name selected", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/");
+
+    await user.click(screen.getByText("Start New Game"));
+
+    const input = container.querySelector<HTMLInputElement>(".game-name-input")!;
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
+
+    // Typing replaces the whole name
+    await user.keyboard("Rummy");
+    expect(input.value).toBe("Rummy");
+  });
+
+  it("does not select the game name when entering edit mode later", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp();
+
+    await user.click(container.querySelector(".button-edit")!);
+
+    expect(document.activeElement).not.toBe(container.querySelector(".game-name-input"));
+  });
+
   it("starts a new game even after playing one", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/");
