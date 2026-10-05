@@ -92,12 +92,12 @@ $negative: #f08a8a;
         border-bottom: 1px solid $gray-2;
       }
 
-      tr:nth-child(even) > * {
+      tr.shaded > * {
         background-color: $gray-2;
       }
 
       // The starting scores are visually separated from the rounds
-      tr:first-child > * {
+      tr.start-row > * {
         border-bottom: 1px solid $gray-4;
       }
     }

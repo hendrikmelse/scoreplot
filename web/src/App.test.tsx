@@ -50,7 +50,7 @@ describe("demo game", () => {
     await user.click(screen.getByText("Continue Game"));
     await user.click(container.querySelectorAll(".buttons-section button")[2]!);
 
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(9); // Start + 8 rounds
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(8); // No Start row: all zeros
     expect(
       Array.from(container.querySelectorAll(".total-cell")).map((el) => el.textContent),
     ).toEqual(["75", "85", "83", "93"]);
@@ -239,16 +239,37 @@ describe("game play page", () => {
       const { container } = await playTwoRounds();
 
       expect(texts(container.querySelectorAll(".player-header"))).toEqual(["Player 1", "Player 2"]);
-      expect(texts(container.querySelectorAll("tbody .round-label"))).toEqual(["Start", "1", "2"]);
-      expect(texts(container.querySelectorAll("tbody tr:nth-child(2) .score-cell"))).toEqual([
+      expect(texts(container.querySelectorAll("tbody .round-label"))).toEqual(["1", "2"]);
+      expect(texts(container.querySelectorAll("tbody tr:nth-child(1) .score-cell"))).toEqual([
         "5",
         "3",
       ]);
-      expect(texts(container.querySelectorAll("tbody tr:nth-child(3) .score-cell"))).toEqual([
+      expect(texts(container.querySelectorAll("tbody tr:nth-child(2) .score-cell"))).toEqual([
         "-2",
         "4",
       ]);
       expect(texts(container.querySelectorAll(".total-cell"))).toEqual(["3", "7"]);
+    });
+
+    it("hides the Start row while everybody's starting score is zero", async () => {
+      const { container } = await playTwoRounds();
+
+      expect(container.querySelector(".start-row")).toBeNull();
+      expect(texts(container.querySelectorAll("tbody .round-label"))).toEqual(["1", "2"]);
+    });
+
+    it("shows the Start row once somebody has a starting score", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+
+      // Go back to round 0 (the initial scores) and give the first player a score
+      fireEvent.keyDown(window, { key: "ArrowLeft" });
+      fireEvent.keyDown(window, { key: "7" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      await user.click(container.querySelectorAll(".buttons-section button")[2]!);
+
+      expect(texts(container.querySelectorAll("tbody .round-label"))).toEqual(["Start"]);
+      expect(texts(container.querySelectorAll(".start-row .score-cell"))).toEqual(["7"]);
     });
 
     it("marks negative scores and colors each header with its player's color", async () => {
@@ -262,7 +283,7 @@ describe("game play page", () => {
     it("jumps to a score on the keypad when its cell is clicked", async () => {
       const { user, container } = await playTwoRounds();
 
-      await user.click(container.querySelectorAll("tbody tr:nth-child(2) .score-cell")[1]!);
+      await user.click(container.querySelectorAll("tbody tr:nth-child(1) .score-cell")[1]!);
 
       expect(container.querySelector(".keypad")).not.toBeNull();
       expect(container.querySelector(".round-label")!.textContent).toBe("Round 1");

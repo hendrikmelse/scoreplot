@@ -11,6 +11,10 @@ export function ScoreTableComponent({
   const { game } = useGame();
   const rounds = Array.from({ length: lastRound(game) + 1 }, (_, round) => round);
 
+  // The starting scores are only worth a row if somebody actually started with something
+  const hasStartingScores = game.scorecards.some((card) => (card.scores[0] ?? 0) !== 0);
+  const shownRounds = hasStartingScores ? rounds : rounds.slice(1);
+
   if (game.scorecards.length === 0) {
     return <div className="score-table-content score-table-empty">No players</div>;
   }
@@ -38,8 +42,11 @@ export function ScoreTableComponent({
             </tr>
           </thead>
           <tbody>
-            {rounds.map((round) => (
-              <tr key={round}>
+            {shownRounds.map((round) => (
+              <tr
+                key={round}
+                className={clsx({ "start-row": round === 0, shaded: round % 2 === 1 })}
+              >
                 <th className="round-label">{round === 0 ? "Start" : round}</th>
                 {game.scorecards.map((card) => {
                   const score = card.scores[round] ?? 0;
