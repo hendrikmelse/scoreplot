@@ -350,6 +350,80 @@ describe("game play page", () => {
     });
   });
 
+  describe("plot", () => {
+    /** Type in one score per player (e.g. "5" or "-2") and move on to the next round */
+    function playRound(...scores: string[]) {
+      for (const score of scores) {
+        for (const key of score) fireEvent.keyDown(window, { key });
+        fireEvent.keyDown(window, { key: "Enter" });
+      }
+      fireEvent.keyDown(window, { key: "ArrowRight" });
+    }
+
+    async function openPlot(container: HTMLElement) {
+      await userEvent.setup().click(container.querySelectorAll(".buttons-section button")[1]!);
+    }
+
+    const labels = (container: HTMLElement, axis: "x" | "y") =>
+      Array.from(container.querySelectorAll(`.plot-label-${axis}`)).map((el) => el.textContent);
+
+    it("explains that there is nothing to plot yet", async () => {
+      const { container } = renderApp();
+      await openPlot(container);
+
+      expect(screen.getByText("Nothing to plot yet")).toBeTruthy();
+      expect(container.querySelector(".plot-line")).toBeNull();
+    });
+
+    it("draws a line with an end dot for every player", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      await addSecondPlayer(user, container);
+      playRound("5", "3");
+      playRound("-2", "4");
+      await openPlot(container);
+
+      expect(screen.queryByText("Nothing to plot yet")).toBeNull();
+      const lines = container.querySelectorAll(".plot-line");
+      expect(lines).toHaveLength(2);
+      // One point for the starting scores and one for each round
+      expect(lines[0]!.getAttribute("points")!.split(" ")).toHaveLength(3);
+      expect(container.querySelectorAll(".plot-end-dot")).toHaveLength(2);
+    });
+
+    it("labels the rounds and the scores", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp();
+      await addSecondPlayer(user, container);
+      playRound("5", "3");
+      playRound("-2", "4"); // Totals end up as 3 and 7
+      await openPlot(container);
+
+      expect(labels(container, "x")).toEqual(["0", "1", "2"]);
+      expect(labels(container, "y")).toContain("0");
+      expect(labels(container, "y")).toContain("7");
+      expect(container.querySelectorAll(".plot-gridline").length).toBeGreaterThan(0);
+    });
+
+    it("labels negative scores too", async () => {
+      const { container } = renderApp();
+      playRound("-5");
+      playRound("-3");
+      await openPlot(container);
+
+      expect(labels(container, "y")).toContain("-8");
+      expect(labels(container, "y")).toContain("0");
+    });
+
+    it("describes itself to screen readers", async () => {
+      const { container } = renderApp();
+      playRound("4");
+      await openPlot(container);
+
+      expect(screen.getByRole("img", { name: /line chart/i })).toBeTruthy();
+    });
+  });
+
   it("can switch to the plot after deleting every player", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();

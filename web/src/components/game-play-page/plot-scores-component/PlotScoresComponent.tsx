@@ -1,15 +1,19 @@
 import "./PlotScoresComponent.scss";
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/GameContext";
-import type { Scorecard } from "@/Game";
 import { lastRound, partialScores, totalScoreRange } from "@/utils/Scores";
+import { roundTicks, valueTicks } from "@/utils/plotTicks";
 
 interface Point {
   x: number;
   y: number;
 }
 
-const margin = 20;
+// Space around the plot, leaving room for the axis labels
+const padding = { top: 20, right: 24, bottom: 30, left: 48 };
+const axisOverhang = 10; // How far the axes stick out past the data
+const pixelsPerValueTick = 60;
+const pixelsPerRoundLabel = 44;
 
 export function PlotScoresComponent() {
   const { game } = useGame();
@@ -37,46 +41,113 @@ export function PlotScoresComponent() {
   // Only plot if there are at least two rounds and the scores aren't all zero
   const hasData = maxRound > 0 && maxScore > minScore;
 
+  // The part of the canvas that the data is drawn in
+  const plot = {
+    left: padding.left,
+    right: canvasSize.width - padding.right,
+    top: padding.top,
+    bottom: canvasSize.height - padding.bottom,
+  };
+
   function transform(score: number, round: number): Point {
-    const roundStep = (canvasSize.width - 2 * margin) / maxRound;
-    const scoreStep = (canvasSize.height - 2 * margin) / (maxScore - minScore);
+    const roundStep = (plot.right - plot.left) / maxRound;
+    const scoreStep = (plot.bottom - plot.top) / (maxScore - minScore);
     return {
-      x: margin + round * roundStep,
-      y: canvasSize.height - (margin + (score - minScore) * scoreStep),
+      x: plot.left + round * roundStep,
+      y: plot.bottom - (score - minScore) * scoreStep,
     };
   }
 
-  function renderScorePlot(scorecard: Scorecard) {
-    const points = partialScores(scorecard).map((score, round) => transform(score, round));
-    return points
-      .slice(1)
-      .map((point, i) => (
+  function renderAxes() {
+    const zeroY = transform(0, 0).y;
+    const scoreTicks = valueTicks(
+      minScore,
+      maxScore,
+      Math.max(3, Math.floor((plot.bottom - plot.top) / pixelsPerValueTick)),
+    );
+    const rounds = roundTicks(
+      maxRound,
+      Math.max(2, Math.floor((plot.right - plot.left) / pixelsPerRoundLabel)),
+    );
+
+    return (
+      <>
+        {scoreTicks.map((tick) => {
+          const y = transform(tick, 0).y;
+          return (
+            <g key={`score-${tick}`}>
+              {tick !== 0 && (
+                <line className="plot-gridline" x1={plot.left} x2={plot.right} y1={y} y2={y} />
+              )}
+              <text className="plot-label plot-label-y" x={plot.left - 8} y={y}>
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+        {rounds.map((round) => (
+          <text
+            key={`round-${round}`}
+            className="plot-label plot-label-x"
+            x={transform(0, round).x}
+            y={plot.bottom + 20}
+          >
+            {round}
+          </text>
+        ))}
         <line
-          key={`${scorecard.id}-${i}`}
-          x1={points[i]!.x}
-          y1={points[i]!.y}
-          x2={point.x}
-          y2={point.y}
-          stroke={scorecard.color}
-          strokeWidth={2}
+          className="plot-axis"
+          x1={plot.left - axisOverhang}
+          x2={plot.right + axisOverhang}
+          y1={zeroY}
+          y2={zeroY}
         />
-      ));
+        <line
+          className="plot-axis"
+          x1={plot.left}
+          x2={plot.left}
+          y1={plot.top - axisOverhang}
+          y2={plot.bottom + axisOverhang}
+        />
+      </>
+    );
   }
 
-  const axisY = transform(0, 0).y;
+  function renderScorePlots() {
+    return game.scorecards.map((card) => {
+      const points = partialScores(card).map((score, round) => transform(score, round));
+      const last = points.at(-1);
+      return (
+        <g key={card.id} color={card.color}>
+          <polyline className="plot-line" points={points.map((p) => `${p.x},${p.y}`).join(" ")} />
+          {last && <circle className="plot-end-dot" cx={last.x} cy={last.y} r={3.5} />}
+        </g>
+      );
+    });
+  }
 
   return (
     <div className="plot-scores-content">
       <div className="plot-area" ref={plotAreaRef}>
-        <svg className="plot-canvas" viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}>
+        <svg
+          className="plot-canvas"
+          viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+          role="img"
+          aria-label="Line chart of each player's total score after every round"
+        >
           {hasData && (
             <>
-              <line x1={10} y1={axisY} x2={canvasSize.width - 10} y2={axisY} stroke="white" />
-              <line x1={margin} y1={10} x2={margin} y2={canvasSize.height - 10} stroke="white" />
-              {game.scorecards.map(renderScorePlot)}
+              {renderAxes()}
+              {renderScorePlots()}
             </>
           )}
         </svg>
+        {!hasData && (
+          <div className="plot-empty">
+            <div className="plot-empty-title">Nothing to plot yet</div>
+            <div className="plot-empty-hint">Scores show up here once a round has been played</div>
+          </div>
+        )}
       </div>
     </div>
   );

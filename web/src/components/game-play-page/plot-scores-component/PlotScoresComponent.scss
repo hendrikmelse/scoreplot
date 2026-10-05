@@ -1,3 +1,5 @@
+@use "../../../Colors.scss" as *;
+
 .plot-scores-content {
   height: 100%;
   width: 100%;
@@ -8,11 +10,75 @@
   width: 100%;
   height: 100%;
   position: relative;
-  background-color: #0a0a0a;
+  background-color: $gray-1;
 }
 
 .plot-canvas {
   position: absolute;
   top: 0;
   left: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+
+  .plot-axis {
+    stroke: white;
+  }
+
+  .plot-gridline {
+    stroke: rgba(white, 0.08);
+  }
+
+  .plot-label {
+    fill: rgba($light-elements, 0.55);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+
+    &.plot-label-y {
+      text-anchor: end;
+      dominant-baseline: central;
+    }
+
+    &.plot-label-x {
+      text-anchor: middle;
+    }
+  }
+
+  // Each player's group sets `color` to their own color
+  .plot-line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  // Marks where each player ended up. The outline separates dots that land close together.
+  .plot-end-dot {
+    fill: currentColor;
+    stroke: $gray-1;
+    stroke-width: 1.5;
+  }
+}
+
+.plot-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba($light-elements, 0.55);
+  text-align: center;
+  pointer-events: none;
+
+  .plot-empty-title {
+    font-size: 18pt;
+    font-weight: bold;
+  }
+
+  .plot-empty-hint {
+    font-size: 12pt;
+  }
 }
