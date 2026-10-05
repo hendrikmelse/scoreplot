@@ -1,4 +1,3 @@
-
 import "./App.scss";
 import { TitlePage } from "./components/title-page/TitlePage";
 import { Routes, Route } from "react-router-dom";
@@ -6,7 +5,10 @@ import { createContext, useReducer } from "react";
 import { Game, gameReducer, UpdateGameAction } from "./Game";
 import { GamePlayPage } from "./components/game-play-page/GamePlayPage";
 
-export const GameContext = createContext<{game: Game, updateGame: React.Dispatch<UpdateGameAction>} | null>(null); 
+export const GameContext = createContext<{
+  game: Game;
+  updateGame: React.Dispatch<UpdateGameAction>;
+} | null>(null);
 
 export default function App() {
   const [game, updateGame] = useReducer(gameReducer, {
@@ -23,14 +25,17 @@ export default function App() {
         id: crypto.randomUUID(),
         playerName: "Alida",
         color: "#e6194b",
-        scores: [0, 2, 15, -4, 12]
-      }
+        scores: [0, 2, 15, -4, 12],
+      },
     ],
   });
-  
+
   return (
     <>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined"
+      />
       <GameContext value={{ game, updateGame }}>
         <Routes>
           <Route path="/" element={<TitlePage />} />

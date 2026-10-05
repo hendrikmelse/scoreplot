@@ -1,0 +1,13 @@
+{
+  "name": "scorekeeper",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix web install",
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "typecheck": "npm --prefix web run typecheck",
+    "lint": "npm --prefix web run lint",
+    "format": "npm --prefix web run format",
+    "test": "npm --prefix web run test"
+  }
+}

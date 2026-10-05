@@ -34,12 +34,12 @@
     border-radius: 6px;
     border: 4px solid transparent;
     cursor: pointer;
-    
+
     &.selected {
       outline: 4px solid $light-elements;
     }
   }
-  
+
   .default-colors-section {
     display: flex;
     gap: 20px;

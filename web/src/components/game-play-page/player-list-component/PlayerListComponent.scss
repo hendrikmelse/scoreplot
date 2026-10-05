@@ -1,4 +1,4 @@
-@use '../../../Colors.scss' as *;
+@use "../../../Colors.scss" as *;
 
 .round-buttons {
   margin: 30px 40px 20px 20px;
@@ -50,7 +50,9 @@
     display: flex;
     gap: 10px;
     cursor: pointer;
-    transition: background-color 200ms ease, transform 150ms ease;
+    transition:
+      background-color 200ms ease,
+      transform 150ms ease;
 
     &.dragging {
       z-index: 1;
@@ -58,7 +60,7 @@
       box-shadow: 0 0 6px 0 black;
       transition: none;
     }
-    
+
     &:not(.editing):not(.selected):hover {
       background-color: $gray-2;
       transition: background-color 40ms ease;
@@ -89,7 +91,7 @@
     &.dragging .drag-handle {
       cursor: grabbing;
     }
-    
+
     .player-color {
       width: 32px;
       border-radius: 2px;
@@ -130,7 +132,7 @@
       font-size: 18pt;
       font-weight: bold;
       overflow: hidden;
-      display: flex;  
+      display: flex;
       align-items: center;
       transition: width 60ms ease;
 

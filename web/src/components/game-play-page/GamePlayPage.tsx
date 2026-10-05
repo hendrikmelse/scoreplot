@@ -1,13 +1,12 @@
 import "./GamePlayPage.scss";
 import clsx from "clsx";
-import { useContext, useEffect, useRef, useState } from "react"
+import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GameContext } from "App";
+import { GameContext } from "@/App";
 import { EnterScoresComponent } from "./enter-scores-component/EnterScoresComponent";
 import { PlayerListComponent } from "./player-list-component/PlayerListComponent";
 import { PlotScoresComponent } from "./plot-scores-component/PlotScoresComponent";
 import { ScoreTableComponent } from "./score-table-component/ScoreTableComponent";
-
 
 export function GamePlayPage() {
   const navigate = useNavigate();
@@ -26,17 +25,18 @@ export function GamePlayPage() {
   useEffect(() => {
     function exitEditMode(event: MouseEvent) {
       if (
-        !gameNameRef.current?.contains(event.target as Node)
-        && !playerListRef.current?.contains(event.target as Node) 
-        && !editButtonRef.current?.contains(event.target as Node)
-      )
-      {
+        !gameNameRef.current?.contains(event.target as Node) &&
+        !playerListRef.current?.contains(event.target as Node) &&
+        !editButtonRef.current?.contains(event.target as Node)
+      ) {
         setEditing(false);
       }
     }
 
-      document.addEventListener("pointerdown", exitEditMode);
-      return () => { document.removeEventListener("pointerdown", exitEditMode); }
+    document.addEventListener("pointerdown", exitEditMode);
+    return () => {
+      document.removeEventListener("pointerdown", exitEditMode);
+    };
   }, []);
 
   useEffect(() => {
@@ -64,18 +64,18 @@ export function GamePlayPage() {
   function changeContent(display: string) {
     if (display === "plot" || display === "table") {
       // When switching to the plot, delete any rounds that are all zeros
-      updateGame({type: "trim_scores"});
+      updateGame({ type: "trim_scores" });
     }
     if (display === "keypad" && currentContent !== "keypad") {
       // When we switch to the keypad, automatically go to the next round
-      const maxRound = Math.max(...game.scorecards.map((scorecard) => scorecard.scores.length - 1))
+      const maxRound = Math.max(...game.scorecards.map((scorecard) => scorecard.scores.length - 1));
       updateGame({
         type: "add_round",
         round: maxRound + 1,
       });
       setCurrentRound(maxRound + 1);
       if (game.scorecards[0]) {
-        setSelectedPlayerId(game.scorecards[0].id)
+        setSelectedPlayerId(game.scorecards[0].id);
       }
     }
     setCurrentContent(display);
@@ -89,13 +89,19 @@ export function GamePlayPage() {
 
   function nextPlayer() {
     if (game.scorecards.length === 0) return;
-    const nextIndex = (game.scorecards.findIndex((card) => card.id === selectedPlayerId) + 1) % game.scorecards.length;
+    const nextIndex =
+      (game.scorecards.findIndex((card) => card.id === selectedPlayerId) + 1) %
+      game.scorecards.length;
     setSelectedPlayerId(game.scorecards[nextIndex]!.id);
   }
-  
+
   function prevPlayer() {
     if (game.scorecards.length === 0) return;
-    const prevIndex = (game.scorecards.findIndex((card) => card.id === selectedPlayerId) - 1 + game.scorecards.length) % game.scorecards.length;
+    const prevIndex =
+      (game.scorecards.findIndex((card) => card.id === selectedPlayerId) -
+        1 +
+        game.scorecards.length) %
+      game.scorecards.length;
     setSelectedPlayerId(game.scorecards[prevIndex]!.id);
   }
 
@@ -103,7 +109,7 @@ export function GamePlayPage() {
     updateGame({
       type: "update_name",
       newName: newName,
-    })
+    });
   }
 
   function nextRound() {
@@ -129,23 +135,44 @@ export function GamePlayPage() {
     <div className="background game-play-background">
       <div className="left-section">
         <div className="top-left-section">
-            <div className="top-buttons-section">
-              <button className="button-home" onClick={() => navigate(`/`)}><span className="material-symbols-outlined">home</span></button>
-              <button className="button-edit" ref={editButtonRef} onClick={() => setEditing(!editing)}><span className="material-symbols-outlined">{editing ? "check" : "edit"}</span></button>
+          <div className="top-buttons-section">
+            <button className="button-home" onClick={() => navigate(`/`)}>
+              <span className="material-symbols-outlined">home</span>
+            </button>
+            <button
+              className="button-edit"
+              ref={editButtonRef}
+              onClick={() => setEditing(!editing)}
+            >
+              <span className="material-symbols-outlined">{editing ? "check" : "edit"}</span>
+            </button>
+          </div>
+          <div className="game-name-section" ref={gameNameRef}>
+            <div
+              className={clsx("edit-game-name-button", { hidden: !editing })}
+              onClick={() => onEditGameNameClick()}
+            >
+              <span className="material-symbols-outlined">edit</span>
             </div>
-            <div className="game-name-section" ref={gameNameRef}>
-              <div className={clsx("edit-game-name-button", { hidden: !editing })} onClick={() => onEditGameNameClick()}><span className="material-symbols-outlined">edit</span></div>
-              { editingGameName ?
-                <input className="game-name-input"
-                  ref={inputGameNameRef} value={game.name}
-                  onChange={(e) => updateGameName(e.target.value)}
-                  onBlur={() => setEditingGameName(false)}
-                  onKeyDown={(e) => { if (e.key === "Enter") setEditingGameName(false)}}/> :
-                <div className="game-name-label" onClick={() => onEditGameNameClick()}>{game.name}</div>
-              }
-            </div>
+            {editingGameName ? (
+              <input
+                className="game-name-input"
+                ref={inputGameNameRef}
+                value={game.name}
+                onChange={(e) => updateGameName(e.target.value)}
+                onBlur={() => setEditingGameName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setEditingGameName(false);
+                }}
+              />
+            ) : (
+              <div className="game-name-label" onClick={() => onEditGameNameClick()}>
+                {game.name}
+              </div>
+            )}
+          </div>
         </div>
-        <div className = "bottom-left-section">
+        <div className="bottom-left-section">
           <div className="player-list-section" ref={playerListRef}>
             <PlayerListComponent
               round={currentContent === "keypad" ? currentRound : -1}
@@ -157,25 +184,45 @@ export function GamePlayPage() {
             />
           </div>
           <div className="buttons-section">
-            <button className={clsx({ selected: currentContent === "keypad" })} onClick={() => changeContent("keypad") }><span className="material-symbols-outlined">dialpad</span></button>
-            <button className={clsx({ selected: currentContent === "plot" })} onClick={() => changeContent("plot") }><span className="material-symbols-outlined">stacked_line_chart</span></button>
-            <button className={clsx({ selected: currentContent === "table" })} onClick={() => changeContent("table") }><span className="material-symbols-outlined">table</span></button>
+            <button
+              className={clsx({ selected: currentContent === "keypad" })}
+              onClick={() => changeContent("keypad")}
+            >
+              <span className="material-symbols-outlined">dialpad</span>
+            </button>
+            <button
+              className={clsx({ selected: currentContent === "plot" })}
+              onClick={() => changeContent("plot")}
+            >
+              <span className="material-symbols-outlined">stacked_line_chart</span>
+            </button>
+            <button
+              className={clsx({ selected: currentContent === "table" })}
+              onClick={() => changeContent("table")}
+            >
+              <span className="material-symbols-outlined">table</span>
+            </button>
           </div>
         </div>
       </div>
       <div className="content-section">
-      {
-        currentContent === "keypad" ? <EnterScoresComponent
-          editing={editing}
-          onSubmit={(score: number) => { saveScore(score); nextPlayer(); }}
-          onNextPlayer={() => nextPlayer()}
-          onPrevPlayer={() => prevPlayer()}
-          onNextRound={() => nextRound()}
-          onPrevRound={() => prevRound()}
-        /> :
-        currentContent === "plot" ? <PlotScoresComponent /> : 
-        currentContent === "table" ? <ScoreTableComponent onScoreSelected={(id, round) => onScoreSelected(id, round)}/> : null
-      }
+        {currentContent === "keypad" ? (
+          <EnterScoresComponent
+            editing={editing}
+            onSubmit={(score: number) => {
+              saveScore(score);
+              nextPlayer();
+            }}
+            onNextPlayer={() => nextPlayer()}
+            onPrevPlayer={() => prevPlayer()}
+            onNextRound={() => nextRound()}
+            onPrevRound={() => prevRound()}
+          />
+        ) : currentContent === "plot" ? (
+          <PlotScoresComponent />
+        ) : currentContent === "table" ? (
+          <ScoreTableComponent onScoreSelected={(id, round) => onScoreSelected(id, round)} />
+        ) : null}
       </div>
     </div>
   );

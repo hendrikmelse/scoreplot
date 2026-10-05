@@ -1,18 +1,25 @@
 import "./PlayerListComponent.scss";
 import clsx from "clsx";
 import React, { useContext, useLayoutEffect, useState, useRef, useEffect } from "react";
-import { GameContext } from "App";
-import { totalScore } from "utils/Scores";
+import { GameContext } from "@/App";
+import { totalScore } from "@/utils/Scores";
 import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
-import { defaultColors } from "config";
+import { defaultColors } from "@/config";
 
-export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, onPrevRound, onNextRound, editing }: {
-  round: number,
-  selectedPlayerId: string,
-  onSelectPlayer: (id: string) => void
-  onPrevRound: () => void,
-  onNextRound: () => void,
-  editing: boolean,
+export function PlayerListComponent({
+  round,
+  selectedPlayerId,
+  onSelectPlayer,
+  onPrevRound,
+  onNextRound,
+  editing,
+}: {
+  round: number;
+  selectedPlayerId: string;
+  onSelectPlayer: (id: string) => void;
+  onPrevRound: () => void;
+  onNextRound: () => void;
+  editing: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectingColorId, setSelectingColorId] = useState("");
@@ -25,7 +32,7 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
   const playerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const playerPositions = useRef<Map<string, DOMRect>>(new Map());
   const playerSpacing = useRef(0);
-  
+
   // Highlight text automatically when a player name is edited
   const lastPlayerId = game.scorecards.at(-1)?.id;
   useEffect(() => {
@@ -38,7 +45,7 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
   // FLIP - animate changes in the player order when reordering the player list
   useLayoutEffect(() => {
     if (dragId === "") return; // No FLIP if we're not actively dragging
-  
+
     playerRefs.current.forEach((player, id) => {
       if (id === dragId) return; // Don't animate the currently dragged item
 
@@ -89,7 +96,9 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
       type: "add_player",
       newPlayerName: "Player " + (game.scorecards.length + 1),
       // Choose the first unused default color
-      newPlayerColor: defaultColors.find((color) => !game.scorecards.some((card) => card.color === color)) ?? "#0000e0"
+      newPlayerColor:
+        defaultColors.find((color) => !game.scorecards.some((card) => card.color === color)) ??
+        "#0000e0",
     });
   }
 
@@ -103,7 +112,7 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
   // Measure the position of each player. Used for FLIP animations
   function measurePlayerPositions() {
     playerRefs.current.forEach((player, id) => {
-      playerPositions.current.set(id, player.getBoundingClientRect())
+      playerPositions.current.set(id, player.getBoundingClientRect());
     });
   }
 
@@ -117,8 +126,7 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
     }
   }
 
-  function startDragging(e: React.PointerEvent, id: string)
-  {
+  function startDragging(e: React.PointerEvent, id: string) {
     document.body.style.userSelect = "none";
     playerRefs.current.get(id)!.style.removeProperty("transition");
     measurePlayerSpacing();
@@ -129,9 +137,8 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
 
     window.addEventListener("pointerup", stopDragging);
   }
-  
-  function stopDragging()
-  {
+
+  function stopDragging() {
     console.log("Stopping dragging");
     document.body.style.userSelect = "";
     setDragId("");
@@ -139,16 +146,15 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
     window.removeEventListener("pointerup", stopDragging);
   }
 
-  function onDrag(e: React.PointerEvent)
-  {
+  function onDrag(e: React.PointerEvent) {
     if (dragId === "") return;
 
     // Compute how far we've dragged and where the dragged item currently is in the list
     const deltaY = e.clientY - dragStartY.current;
-    const index = game.scorecards.findIndex((card) => card.id === dragId)
+    const index = game.scorecards.findIndex((card) => card.id === dragId);
 
     // Figure out if we need to move the item's position
-    if (index > 0 && -deltaY > playerSpacing.current * 3 / 5) {
+    if (index > 0 && -deltaY > (playerSpacing.current * 3) / 5) {
       measurePlayerPositions();
       dragStartY.current -= playerSpacing.current;
       updateGame({
@@ -156,8 +162,7 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
         playerId: dragId,
         direction: "up",
       });
-    }
-    else if (index < game.scorecards.length - 1 && deltaY > playerSpacing.current * 3 / 5) {
+    } else if (index < game.scorecards.length - 1 && deltaY > (playerSpacing.current * 3) / 5) {
       measurePlayerPositions();
       dragStartY.current += playerSpacing.current;
       updateGame({
@@ -174,50 +179,106 @@ export function PlayerListComponent({ round, selectedPlayerId, onSelectPlayer, o
   return (
     <>
       <div className={"round-buttons"}>
-        <button className={clsx({ hidden: round === -1 || editing })} onClick={() => onPrevRound()}><span className="material-symbols-outlined">arrow_left_alt</span></button>
-        <div className="round-label">{editing ? "Edit Players" : round === 0 ? "Initial Score" : round === -1 ? "Total Scores" : `Round ${round}`}</div>
-        <button className={round === -1 || editing ? "hidden" : ""} onClick={() => onNextRound()}><span className="material-symbols-outlined">arrow_right_alt</span></button>
+        <button className={clsx({ hidden: round === -1 || editing })} onClick={() => onPrevRound()}>
+          <span className="material-symbols-outlined">arrow_left_alt</span>
+        </button>
+        <div className="round-label">
+          {editing
+            ? "Edit Players"
+            : round === 0
+              ? "Initial Score"
+              : round === -1
+                ? "Total Scores"
+                : `Round ${round}`}
+        </div>
+        <button className={round === -1 || editing ? "hidden" : ""} onClick={() => onNextRound()}>
+          <span className="material-symbols-outlined">arrow_right_alt</span>
+        </button>
       </div>
       <div className="player-list" onPointerMove={(e) => onDrag(e)}>
-        { game.scorecards.map((card, index) => <React.Fragment key={card.id}>
-          <div className={clsx("player", { selected: selectedPlayerId === card.id && round >= 0 && !editing, editing: editing, dragging: dragId === card.id })}
-            onClick={() => onSelectPlayer(card.id)}
-            ref={(el) => {
-              if (el) playerRefs.current.set(card.id, el);
-              else playerRefs.current.delete(card.id);
-            }}
-            style={card.id === dragId ? { transform: `translateY(${Math.min(Math.max(dragDeltaY, index === 0 ? -playerSpacing.current / 6 : -Infinity), index === game.scorecards.length - 1 ? playerSpacing.current / 6 : Infinity)}px)` } : {}}
-          >
-            <div className="spacer-left" />
-            <div className={clsx("drag-handle", { hidden: !editing })} onPointerDown={(e) => startDragging(e, card.id)}><span className="material-symbols-outlined">drag_handle</span></div>
-            <div className="player-color" style={{ "backgroundColor": card.color }} onClick={(e) => onColorClick(e, card.id)}/>
-            <div className={clsx("edit-name-button", { hidden: !editing })} onClick={() => onEditNameClick(card.id)}><span className="material-symbols-outlined">edit</span></div>
-            { editingPlayerNameId === card.id ?
-              <input className="player-name-input"
-                ref={inputRef} value={card.playerName}
-                onChange={(e) => updatePlayerName(e.target.value, card.id)}
-                onBlur={() => setEditingPlayerNameId("")}
-                onKeyDown={(e) => { if (e.key === "Enter") setEditingPlayerNameId("")}}/> :
-              <div className="player-name" onClick={() => onEditNameClick(card.id)}>{card.playerName}</div>
-            }
-            <div className={clsx("score", {hidden: editing })}>{round >= 0 ? card.scores[round] : totalScore(card)}</div>
-            <div className={clsx("delete-button", {hidden: !editing })} onClick={() => deletePlayer(card.id)}><span className="material-symbols-outlined">delete</span></div>
-            <div className="spacer-right" />
-          </div>
-          {
-            selectingColorId === card.id ?
+        {game.scorecards.map((card, index) => (
+          <React.Fragment key={card.id}>
+            <div
+              className={clsx("player", {
+                selected: selectedPlayerId === card.id && round >= 0 && !editing,
+                editing: editing,
+                dragging: dragId === card.id,
+              })}
+              onClick={() => onSelectPlayer(card.id)}
+              ref={(el) => {
+                if (el) playerRefs.current.set(card.id, el);
+                else playerRefs.current.delete(card.id);
+              }}
+              style={
+                card.id === dragId
+                  ? {
+                      transform: `translateY(${Math.min(Math.max(dragDeltaY, index === 0 ? -playerSpacing.current / 6 : -Infinity), index === game.scorecards.length - 1 ? playerSpacing.current / 6 : Infinity)}px)`,
+                    }
+                  : {}
+              }
+            >
+              <div className="spacer-left" />
+              <div
+                className={clsx("drag-handle", { hidden: !editing })}
+                onPointerDown={(e) => startDragging(e, card.id)}
+              >
+                <span className="material-symbols-outlined">drag_handle</span>
+              </div>
+              <div
+                className="player-color"
+                style={{ backgroundColor: card.color }}
+                onClick={(e) => onColorClick(e, card.id)}
+              />
+              <div
+                className={clsx("edit-name-button", { hidden: !editing })}
+                onClick={() => onEditNameClick(card.id)}
+              >
+                <span className="material-symbols-outlined">edit</span>
+              </div>
+              {editingPlayerNameId === card.id ? (
+                <input
+                  className="player-name-input"
+                  ref={inputRef}
+                  value={card.playerName}
+                  onChange={(e) => updatePlayerName(e.target.value, card.id)}
+                  onBlur={() => setEditingPlayerNameId("")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") setEditingPlayerNameId("");
+                  }}
+                />
+              ) : (
+                <div className="player-name" onClick={() => onEditNameClick(card.id)}>
+                  {card.playerName}
+                </div>
+              )}
+              <div className={clsx("score", { hidden: editing })}>
+                {round >= 0 ? card.scores[round] : totalScore(card)}
+              </div>
+              <div
+                className={clsx("delete-button", { hidden: !editing })}
+                onClick={() => deletePlayer(card.id)}
+              >
+                <span className="material-symbols-outlined">delete</span>
+              </div>
+              <div className="spacer-right" />
+            </div>
+            {selectingColorId === card.id ? (
               <SelectColorComponent
                 currentColor={card.color}
                 position={colorPickerPosition!}
                 playerId={card.id}
                 onClose={() => setSelectingColorId("")}
-              /> :
+              />
+            ) : (
               <></>
-          }
-        </React.Fragment>)}
+            )}
+          </React.Fragment>
+        ))}
       </div>
       <div className={clsx("add-player-row", { hidden: !editing })}>
-        <button className="add-player-button" onClick={() => addPlayer()}><span className="material-symbols-outlined">add</span></button>
+        <button className="add-player-button" onClick={() => addPlayer()}>
+          <span className="material-symbols-outlined">add</span>
+        </button>
       </div>
     </>
   );
