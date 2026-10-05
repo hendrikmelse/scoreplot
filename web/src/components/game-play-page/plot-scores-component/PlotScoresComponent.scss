@@ -57,17 +57,9 @@
     transition: stroke-width 100ms ease;
   }
 
-  // While the mouse is over a player in the player list, their line stands out and the rest fade
-  .plot-player {
-    transition: opacity 100ms ease;
-
-    &.dimmed {
-      opacity: 0.2;
-    }
-
-    &.highlighted .plot-line {
-      stroke-width: 3.5;
-    }
+  // While the mouse is over a player in the player list, their line gets a bit thicker
+  .plot-player.highlighted .plot-line {
+    stroke-width: 3.5;
   }
 
   // Marks where each player ended up. The outline separates dots that land close together.
@@ -89,10 +81,6 @@
     fill: currentColor;
     stroke: $gray-1;
     stroke-width: 1.5;
-
-    &.dimmed {
-      opacity: 0.2;
-    }
   }
 }
 

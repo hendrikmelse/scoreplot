@@ -137,19 +137,14 @@ export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayer
     const cards = [...game.scorecards].sort(
       (a, b) => Number(a.id === highlightedPlayerId) - Number(b.id === highlightedPlayerId),
     );
-    const anyHighlighted = cards.some((card) => card.id === highlightedPlayerId);
 
     return cards.map((card) => {
       const points = partialScores(card).map((score, round) => transform(score, round));
       const last = points.at(-1);
-      const isHighlighted = card.id === highlightedPlayerId;
       return (
         <g
           key={card.id}
-          className={clsx("plot-player", {
-            highlighted: isHighlighted,
-            dimmed: anyHighlighted && !isHighlighted,
-          })}
+          className={clsx("plot-player", { highlighted: card.id === highlightedPlayerId })}
           color={card.color}
         >
           <polyline className="plot-line" points={points.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -172,9 +167,7 @@ export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayer
           return (
             <circle
               key={card.id}
-              className={clsx("plot-hover-dot", {
-                dimmed: highlightedPlayerId !== "" && card.id !== highlightedPlayerId,
-              })}
+              className="plot-hover-dot"
               cx={x}
               cy={y}
               r={4.5}

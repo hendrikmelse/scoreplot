@@ -514,18 +514,20 @@ describe("game play page", () => {
       const lineStates = (container: HTMLElement) =>
         Array.from(container.querySelectorAll(".plot-player")).map((line) => ({
           highlighted: line.classList.contains("highlighted"),
-          dimmed: line.classList.contains("dimmed"),
+          classes: line.getAttribute("class"),
         }));
 
-      it("emphasizes that player's line and fades the others", async () => {
+      it("makes that player's line bolder and leaves the other lines alone", async () => {
         const { user, container } = await twoPlayersTwoRounds();
-        expect(lineStates(container).every((s) => !s.highlighted && !s.dimmed)).toBe(true);
+        expect(lineStates(container).some((s) => s.highlighted)).toBe(false);
 
         await user.hover(container.querySelectorAll(".player")[1]!);
 
         const states = lineStates(container);
         expect(states.filter((s) => s.highlighted)).toHaveLength(1);
-        expect(states.filter((s) => s.dimmed)).toHaveLength(1);
+        // The other line has no extra classes, so nothing fades it
+        expect(states.filter((s) => !s.highlighted).map((s) => s.classes)).toEqual(["plot-player"]);
+        expect(container.querySelector(".dimmed")).toBeNull();
       });
 
       it("draws the highlighted line last, on top", async () => {
@@ -541,7 +543,7 @@ describe("game play page", () => {
         await user.hover(container.querySelectorAll(".player")[1]!);
         await user.unhover(container.querySelectorAll(".player")[1]!);
 
-        expect(lineStates(container).every((s) => !s.highlighted && !s.dimmed)).toBe(true);
+        expect(lineStates(container).some((s) => s.highlighted)).toBe(false);
       });
 
       it("is also shown in the hover readout", async () => {
