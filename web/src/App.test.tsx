@@ -278,7 +278,7 @@ describe("game play page", () => {
     it("types and submits when the keys are tapped", async () => {
       const user = userEvent.setup();
       const { container } = renderApp();
-      const display = () => container.querySelector(".score-display")!.textContent;
+      const display = () => container.querySelector(".score-value")!.textContent;
 
       await user.click(key(container, "1"));
       await user.click(key(container, "2"));
@@ -333,7 +333,7 @@ describe("game play page", () => {
       fireEvent.pointerDown(key(container, "8"));
       fireEvent.pointerCancel(key(container, "8")); // No click follows a cancelled touch
 
-      expect(container.querySelector(".score-display")!.textContent).toBe("0");
+      expect(container.querySelector(".score-value")!.textContent).toBe("0");
     });
   });
 
@@ -627,7 +627,7 @@ describe("game play page", () => {
     await user.click(container.querySelector(".player-name-input")!);
     await user.keyboard("7{Enter}");
 
-    expect(container.querySelector(".score-display")!.textContent).toBe("0");
+    expect(container.querySelector(".score-value")!.textContent).toBe("0");
   });
 
   it("switches between the keypad, plot and table", async () => {
@@ -1224,5 +1224,84 @@ describe("pressing a toast while editing", () => {
     await user.click(container.querySelector(".content-section")!);
 
     expect(container.querySelector(".player.editing")).toBeNull();
+  });
+});
+
+describe("keypad caption", () => {
+  const caption = (container: HTMLElement) =>
+    container.querySelector(".score-caption")!.textContent;
+
+  it("says whose score is being entered, and in which round", () => {
+    const { container } = renderApp("/play/");
+    expect(caption(container)).toBe("Player 1 · Round 1");
+  });
+
+  it("follows the selection from player to player", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await addSecondPlayer(user, container);
+
+    expect(caption(container)).toBe("Player 1 · Round 1");
+    fireEvent.keyDown(window, { key: "ArrowDown" });
+    expect(caption(container)).toBe("Player 2 · Round 1");
+    fireEvent.keyDown(window, { key: "ArrowUp" });
+    expect(caption(container)).toBe("Player 1 · Round 1");
+  });
+
+  it("moves on with the player when a score is entered", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await addSecondPlayer(user, container);
+
+    fireEvent.keyDown(window, { key: "5" });
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    expect(caption(container)).toBe("Player 2 · Round 1");
+  });
+
+  it("follows the round", () => {
+    const { container } = renderApp("/play/");
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(caption(container)).toBe("Player 1 · Round 2");
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(caption(container)).toBe("Player 1 · Initial score");
+  });
+
+  it("follows a player being renamed", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".button-edit")!);
+    await user.clear(container.querySelector(".player-name-input")!);
+    await user.type(container.querySelector(".player-name-input")!, "Ada");
+    await user.click(container.querySelector(".button-edit")!);
+
+    expect(caption(container)).toBe("Ada · Round 1");
+  });
+
+  it("copes with a player whose name has been cleared", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".button-edit")!);
+    await user.clear(container.querySelector(".player-name-input")!);
+    await user.click(container.querySelector(".button-edit")!);
+
+    expect(caption(container)).toBe("Player · Round 1");
+  });
+
+  it("copes with there being no players", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".delete-button")!);
+
+    expect(caption(container)).toBe("Round 1");
+  });
+
+  it("is part of what is announced to a screen reader, together with the number", () => {
+    const { container } = renderApp("/play/");
+    const status = container.querySelector('.keypad [role="status"]')!;
+    expect(status.textContent).toBe("Player 1 · Round 10");
   });
 });

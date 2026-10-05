@@ -34,7 +34,7 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
     min-width: 0;
     display: flex;
     align-items: center;
-    justify-content: flex-end; // Long numbers get cut off at the left, so the newest digits stay in view
+    gap: 16px;
     overflow: hidden;
     padding: 0 clamp(18px, 3.5vmin, 36px);
     background-color: $gray-2;
@@ -45,6 +45,33 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
     font-size: clamp(30px, 6.4vmin, 48px);
     font-weight: bold;
     white-space: nowrap;
+
+    // Who the score is for, and in which round. It gives way to the number if they can't both fit.
+    .score-caption {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow: hidden;
+      color: rgba($light-elements, 0.55);
+      font-family:
+        system-ui,
+        -apple-system,
+        "Segoe UI",
+        Roboto,
+        sans-serif; // Not the number's font
+      font-size: clamp(14px, 2.6vmin, 22px);
+      font-weight: 600;
+      text-overflow: ellipsis;
+    }
+
+    // Aligned to the right, so a number too long to fit gets cut off at the left, which keeps the
+    // newest digits in view
+    .score-value {
+      flex: 0 1 auto;
+      min-width: 0;
+      display: flex;
+      justify-content: flex-end;
+      overflow: hidden;
+    }
   }
 
   .key {

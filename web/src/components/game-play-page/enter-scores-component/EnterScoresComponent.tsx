@@ -32,6 +32,7 @@ const keys = [
 ];
 
 export function EnterScoresComponent({
+  caption,
   editing,
   onSubmit,
   onNextPlayer,
@@ -39,6 +40,8 @@ export function EnterScoresComponent({
   onNextRound,
   onPrevRound,
 }: {
+  /** Who the score is for, and in which round, shown next to the number being typed */
+  caption: string;
   editing: boolean;
   onSubmit: (score: number) => void;
   onNextPlayer: () => void;
@@ -97,8 +100,9 @@ export function EnterScoresComponent({
   return (
     <div className="keypad">
       {/* Not an <input>, so that tapping it on a touchscreen can't bring up the on-screen keyboard */}
-      <div className="score-display" role="status" aria-label="Score">
-        {inputScore}
+      <div className="score-display" role="status">
+        <span className="score-caption">{caption}</span>
+        <span className="score-value">{inputScore}</span>
       </div>
       {keys.map(({ key, label, icon, className }) => (
         <button

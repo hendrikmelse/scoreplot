@@ -41,6 +41,13 @@ export function GamePlayPage() {
     ? selectedPlayerIdState
     : firstPlayerId;
 
+  // What the keypad says the score being typed is for
+  const selectedPlayer = game.scorecards.find((card) => card.id === selectedPlayerId);
+  const roundName = currentRound === 0 ? "Initial score" : `Round ${currentRound}`;
+  const keypadCaption = selectedPlayer
+    ? `${selectedPlayer.playerName.trim() || "Player"} · ${roundName}`
+    : roundName;
+
   // When leaving edit mode, go back to the first player
   const exitEditMode = useCallback(() => {
     setEditing(false);
@@ -178,6 +185,7 @@ export function GamePlayPage() {
       <div className="content-section">
         {currentContent === "keypad" && (
           <EnterScoresComponent
+            caption={keypadCaption}
             editing={editing}
             onSubmit={(score) => {
               saveScore(score);
