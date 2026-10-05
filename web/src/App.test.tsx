@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
 import { createDemoGame } from "@/demoGame";
-import { lastRound, totalScore, totalScoreRange } from "@/utils/Scores";
+import { lastRound, partialScores, totalScore, totalScoreRange } from "@/utils/Scores";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -62,18 +62,22 @@ describe("demo game", () => {
     ).toEqual(demo.scorecards.map((card) => String(totalScore(card))));
   });
 
-  it("keeps the story: Priya wins easily, Hendrik and Sam follow, and Alida finishes last", () => {
+  it("keeps the story: Hendrik wins easily, Priya and Sam follow, and Alida finishes last", () => {
     const demo = createDemoGame();
     const total = (name: string) =>
       totalScore(demo.scorecards.find((card) => card.playerName === name)!);
-    const others = demo.scorecards.map(totalScore).sort((x, y) => y - x);
+    const ranked = demo.scorecards.map(totalScore).sort((x, y) => y - x);
 
-    expect(total("Priya")).toBe(others[0]);
-    expect(total("Priya") - others[1]!).toBeGreaterThan(30);
-    expect(total("Priya")).toBeGreaterThan(total("Hendrik") + 60);
-    expect(total("Hendrik")).toBeGreaterThan(total("Sam") + 60);
+    expect(total("Hendrik")).toBe(ranked[0]);
+    expect(total("Hendrik") - ranked[1]!).toBeGreaterThan(60);
+    expect(total("Priya")).toBeGreaterThan(total("Sam") + 60);
     expect(total("Sam")).toBeGreaterThan(total("Alida") + 60);
-    expect(total("Alida")).toBe(others.at(-1));
+    expect(total("Alida")).toBe(ranked.at(-1));
+  });
+
+  it("has Alida dip below zero along the way", () => {
+    const alida = createDemoGame().scorecards.find((card) => card.playerName === "Alida")!;
+    expect(Math.min(...partialScores(alida))).toBeLessThan(-10);
   });
 
   it("is very random from round to round, and the weakest player dips below zero", () => {
@@ -88,11 +92,11 @@ describe("demo game", () => {
     expect(totalScoreRange(demo).min).toBeLessThan(0);
   });
 
-  it("has enough players, with their own colors, that the score table scrolls sideways", () => {
+  it("has so many players that the player list and the score table have to scroll", () => {
     const demo = createDemoGame();
-    expect(demo.scorecards).toHaveLength(12);
-    expect(new Set(demo.scorecards.map((card) => card.color)).size).toBe(12);
-    expect(new Set(demo.scorecards.map((card) => card.playerName)).size).toBe(12);
+    expect(demo.scorecards).toHaveLength(20);
+    expect(new Set(demo.scorecards.map((card) => card.color)).size).toBe(20);
+    expect(new Set(demo.scorecards.map((card) => card.playerName)).size).toBe(20);
   });
 
   it("is the same every time", () => {

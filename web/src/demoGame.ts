@@ -4,14 +4,14 @@ import { generatedColor } from "@/utils/color";
 
 const ROUNDS = 24;
 const SKIPPED_ROUND_CHANCE = 0.1; // Rounds where a player scores nothing at all
-const SEED = 221;
+const SEED = 9083;
 
 /** Each round a player scores about `typical`, give or take `spread` */
 const players = [
   { name: "Alida", typical: 1, spread: 9 }, // Struggling
-  { name: "Hendrik", typical: 17, spread: 12 }, // Solid
+  { name: "Hendrik", typical: 28, spread: 11 }, // Runs away with it
   { name: "Sam", typical: 9, spread: 14 }, // Streaky
-  { name: "Priya", typical: 28, spread: 11 }, // Runs away with it
+  { name: "Priya", typical: 17, spread: 12 }, // Solid
   { name: "Marcus", typical: 22, spread: 13 },
   { name: "Yuki", typical: 13, spread: 10 },
   { name: "Dana", typical: 5, spread: 12 },
@@ -20,6 +20,14 @@ const players = [
   { name: "Wen", typical: 25, spread: 14 },
   { name: "Liam", typical: 7, spread: 11 },
   { name: "Ines", typical: 15, spread: 13 },
+  { name: "Omar", typical: 14, spread: 12 },
+  { name: "Zoe", typical: 19, spread: 10 },
+  { name: "Felix", typical: 10, spread: 13 },
+  { name: "Ana", typical: 21, spread: 12 },
+  { name: "Kofi", typical: 8, spread: 10 },
+  { name: "Mei", typical: 17, spread: 14 },
+  { name: "Raj", typical: 12, spread: 11 },
+  { name: "Sofia", typical: 7, spread: 12 },
 ];
 
 // A small seeded random number generator, so the demo game is the same every time
@@ -38,8 +46,8 @@ function gaussian(random: () => number): number {
 }
 
 /**
- * A long game for trying out the app, with many players and more rounds than fit on screen, so
- * the score table has to scroll in both directions. The players have clearly different skill
+ * A long game for trying out the app, with more players and more rounds than fit on screen, so
+ * that the player list and the score table both have to scroll. The players have clearly different skill
  * levels but every round is quite random. Open the app at "/?demo".
  */
 export function createDemoGame(): Game {
