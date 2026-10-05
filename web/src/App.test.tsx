@@ -415,6 +415,147 @@ describe("game play page", () => {
       expect(labels(container, "y")).toContain("0");
     });
 
+    // The test canvas is 800 wide and the plot spans x = 48 (round 0) to x = 776 (the last round)
+    const plotLeft = 48;
+    const plotRight = 776;
+    const plotBottom = 570; // The test canvas is 600 high, with 30 left below the plot for labels
+
+    async function twoPlayersTwoRounds() {
+      const user = userEvent.setup();
+      const view = renderApp();
+      await addSecondPlayer(user, view.container);
+      playRound("5", "3");
+      playRound("-2", "4"); // After round 2: Player 1 has 3 (-2), Player 2 has 7 (+4)
+      await openPlot(view.container);
+      return { user, plotArea: view.container.querySelector(".plot-area")!, ...view };
+    }
+
+    const readoutRows = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll(".plot-readout-row")).map((row) => row.textContent);
+
+    it("keeps the ends of the axes clear of the zero labels", async () => {
+      const { container } = await twoPlayersTwoRounds();
+      const [zeroLine, yAxis] = Array.from(container.querySelectorAll(".plot-axis"));
+
+      // Neither axis pokes out past the point where they meet, where the "0" labels are
+      expect(Number(zeroLine!.getAttribute("x1"))).toBe(plotLeft);
+      expect(Number(yAxis!.getAttribute("y2"))).toBe(plotBottom);
+      const labelBottom = Number(container.querySelector(".plot-label-x")!.getAttribute("y"));
+      expect(labelBottom - Number(yAxis!.getAttribute("y2"))).toBeGreaterThanOrEqual(20);
+      const yLabelX = Number(container.querySelector(".plot-label-y")!.getAttribute("x"));
+      expect(Number(yAxis!.getAttribute("x1")) - yLabelX).toBeGreaterThanOrEqual(10);
+    });
+
+    describe("hovering", () => {
+      it("shows nothing until the mouse is over the plot", async () => {
+        const { container } = await twoPlayersTwoRounds();
+        expect(container.querySelector(".plot-readout")).toBeNull();
+        expect(container.querySelector(".plot-guide")).toBeNull();
+      });
+
+      it("shows everybody's total after the round, best first", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+
+        fireEvent.pointerMove(plotArea, { clientX: plotRight });
+
+        expect(container.querySelector(".plot-readout-title")!.textContent).toBe("Round 2");
+        expect(readoutRows(container)).toEqual(["Player 27+4", "Player 13-2"]);
+        expect(container.querySelector(".plot-guide")).not.toBeNull();
+        expect(container.querySelectorAll(".plot-hover-dot")).toHaveLength(2);
+      });
+
+      it("snaps to the nearest round", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+        const title = () => container.querySelector(".plot-readout-title")!.textContent;
+        const roundWidth = (plotRight - plotLeft) / 2;
+
+        fireEvent.pointerMove(plotArea, { clientX: plotLeft + roundWidth * 0.4 });
+        expect(title()).toBe("Start");
+        fireEvent.pointerMove(plotArea, { clientX: plotLeft + roundWidth * 0.6 });
+        expect(title()).toBe("Round 1");
+        fireEvent.pointerMove(plotArea, { clientX: plotLeft + roundWidth * 5 }); // Way past the end
+        expect(title()).toBe("Round 2");
+        fireEvent.pointerMove(plotArea, { clientX: -100 }); // Way before the start
+        expect(title()).toBe("Start");
+      });
+
+      it("only shows round totals, not gains, for the start", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+        fireEvent.pointerMove(plotArea, { clientX: plotLeft });
+        expect(readoutRows(container)).toEqual(["Player 10", "Player 20"]);
+      });
+
+      it("goes away when the mouse leaves", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+        fireEvent.pointerMove(plotArea, { clientX: plotRight });
+        expect(container.querySelector(".plot-readout")).not.toBeNull();
+
+        fireEvent.pointerLeave(plotArea, { pointerType: "mouse" });
+        expect(container.querySelector(".plot-readout")).toBeNull();
+        expect(container.querySelector(".plot-guide")).toBeNull();
+      });
+
+      it("stays when a finger is lifted, so it can be read", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+        fireEvent.pointerDown(plotArea, { clientX: plotRight, pointerType: "touch" });
+        fireEvent.pointerLeave(plotArea, { pointerType: "touch" });
+        expect(container.querySelector(".plot-readout")).not.toBeNull();
+      });
+
+      it("does nothing when there is nothing to plot", async () => {
+        const { container } = renderApp();
+        await openPlot(container);
+        fireEvent.pointerMove(container.querySelector(".plot-area")!, { clientX: plotRight });
+        expect(container.querySelector(".plot-readout")).toBeNull();
+      });
+    });
+
+    describe("highlighting a player from the list", () => {
+      const lineStates = (container: HTMLElement) =>
+        Array.from(container.querySelectorAll(".plot-player")).map((line) => ({
+          highlighted: line.classList.contains("highlighted"),
+          dimmed: line.classList.contains("dimmed"),
+        }));
+
+      it("emphasizes that player's line and fades the others", async () => {
+        const { user, container } = await twoPlayersTwoRounds();
+        expect(lineStates(container).every((s) => !s.highlighted && !s.dimmed)).toBe(true);
+
+        await user.hover(container.querySelectorAll(".player")[1]!);
+
+        const states = lineStates(container);
+        expect(states.filter((s) => s.highlighted)).toHaveLength(1);
+        expect(states.filter((s) => s.dimmed)).toHaveLength(1);
+      });
+
+      it("draws the highlighted line last, on top", async () => {
+        const { user, container } = await twoPlayersTwoRounds();
+        await user.hover(container.querySelectorAll(".player")[0]!);
+
+        const players = container.querySelectorAll(".plot-player");
+        expect(players[players.length - 1]!.classList.contains("highlighted")).toBe(true);
+      });
+
+      it("goes back to normal when the mouse leaves the player", async () => {
+        const { user, container } = await twoPlayersTwoRounds();
+        await user.hover(container.querySelectorAll(".player")[1]!);
+        await user.unhover(container.querySelectorAll(".player")[1]!);
+
+        expect(lineStates(container).every((s) => !s.highlighted && !s.dimmed)).toBe(true);
+      });
+
+      it("is also shown in the hover readout", async () => {
+        const { user, container, plotArea } = await twoPlayersTwoRounds();
+        fireEvent.pointerMove(plotArea, { clientX: plotRight });
+        await user.hover(container.querySelectorAll(".player")[0]!);
+
+        expect(container.querySelectorAll(".plot-readout-row.highlighted")).toHaveLength(1);
+        expect(container.querySelector(".plot-readout-row.highlighted")!.textContent).toContain(
+          "Player 1",
+        );
+      });
+    });
+
     it("describes itself to screen readers", async () => {
       const { container } = renderApp();
       playRound("4");

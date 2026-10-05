@@ -1,4 +1,5 @@
 import "./PlotScoresComponent.scss";
+import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/GameContext";
 import { lastRound, partialScores, totalScoreRange } from "@/utils/Scores";
@@ -11,15 +12,18 @@ interface Point {
 
 // Space around the plot, leaving room for the axis labels
 const padding = { top: 20, right: 24, bottom: 30, left: 48 };
-const axisOverhang = 10; // How far the axes stick out past the data
+// How far the axes stick out past the data. Only at the top and right, where there are no labels.
+const axisOverhang = 10;
 const pixelsPerValueTick = 60;
 const pixelsPerRoundLabel = 44;
+const tooltipGap = 14; // Between the hover guide and the readout next to it
 
-export function PlotScoresComponent() {
+export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayerId: string }) {
   const { game } = useGame();
 
   const plotAreaRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [hoverRound, setHoverRound] = useState<number | null>(null);
 
   const { min: minScore, max: maxScore } = totalScoreRange(game);
   const maxRound = lastRound(game);
@@ -58,6 +62,21 @@ export function PlotScoresComponent() {
     };
   }
 
+  // The round being pointed at, which can be gone by the time we render if the game shrank
+  const hover = hasData && hoverRound !== null ? Math.min(hoverRound, maxRound) : null;
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!hasData) return;
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    const round = Math.round(((x - plot.left) / (plot.right - plot.left)) * maxRound);
+    setHoverRound(Math.min(maxRound, Math.max(0, round)));
+  }
+
+  function onPointerLeave(e: React.PointerEvent<HTMLDivElement>) {
+    // A finger lifting off the screen "leaves" too, but then the readout should stay put
+    if (e.pointerType === "mouse") setHoverRound(null);
+  }
+
   function renderAxes() {
     const zeroY = transform(0, 0).y;
     const scoreTicks = valueTicks(
@@ -79,7 +98,7 @@ export function PlotScoresComponent() {
               {tick !== 0 && (
                 <line className="plot-gridline" x1={plot.left} x2={plot.right} y1={y} y2={y} />
               )}
-              <text className="plot-label plot-label-y" x={plot.left - 8} y={y}>
+              <text className="plot-label plot-label-y" x={plot.left - 10} y={y}>
                 {tick}
               </text>
             </g>
@@ -90,14 +109,14 @@ export function PlotScoresComponent() {
             key={`round-${round}`}
             className="plot-label plot-label-x"
             x={transform(0, round).x}
-            y={plot.bottom + 20}
+            y={plot.bottom + 22}
           >
             {round}
           </text>
         ))}
         <line
           className="plot-axis"
-          x1={plot.left - axisOverhang}
+          x1={plot.left}
           x2={plot.right + axisOverhang}
           y1={zeroY}
           y2={zeroY}
@@ -107,18 +126,32 @@ export function PlotScoresComponent() {
           x1={plot.left}
           x2={plot.left}
           y1={plot.top - axisOverhang}
-          y2={plot.bottom + axisOverhang}
+          y2={plot.bottom}
         />
       </>
     );
   }
 
   function renderScorePlots() {
-    return game.scorecards.map((card) => {
+    // The highlighted player goes last, so that their line is drawn on top of the others
+    const cards = [...game.scorecards].sort(
+      (a, b) => Number(a.id === highlightedPlayerId) - Number(b.id === highlightedPlayerId),
+    );
+    const anyHighlighted = cards.some((card) => card.id === highlightedPlayerId);
+
+    return cards.map((card) => {
       const points = partialScores(card).map((score, round) => transform(score, round));
       const last = points.at(-1);
+      const isHighlighted = card.id === highlightedPlayerId;
       return (
-        <g key={card.id} color={card.color}>
+        <g
+          key={card.id}
+          className={clsx("plot-player", {
+            highlighted: isHighlighted,
+            dimmed: anyHighlighted && !isHighlighted,
+          })}
+          color={card.color}
+        >
           <polyline className="plot-line" points={points.map((p) => `${p.x},${p.y}`).join(" ")} />
           {last && <circle className="plot-end-dot" cx={last.x} cy={last.y} r={3.5} />}
         </g>
@@ -126,9 +159,82 @@ export function PlotScoresComponent() {
     });
   }
 
+  // The vertical guide and a dot on every line, for the round being pointed at
+  function renderHoverMarks(round: number) {
+    const x = transform(0, round).x;
+    return (
+      <g className="plot-hover">
+        <line className="plot-guide" x1={x} x2={x} y1={plot.top} y2={plot.bottom} />
+        {game.scorecards.map((card) => {
+          const totals = partialScores(card);
+          const total = totals[round] ?? totals.at(-1) ?? 0;
+          const { y } = transform(total, round);
+          return (
+            <circle
+              key={card.id}
+              className={clsx("plot-hover-dot", {
+                dimmed: highlightedPlayerId !== "" && card.id !== highlightedPlayerId,
+              })}
+              cx={x}
+              cy={y}
+              r={4.5}
+              color={card.color}
+            />
+          );
+        })}
+      </g>
+    );
+  }
+
+  // Everybody's total after the round being pointed at, best first
+  function renderReadout(round: number) {
+    const x = transform(0, round).x;
+    const rows = game.scorecards
+      .map((card) => {
+        const totals = partialScores(card);
+        return {
+          card,
+          total: totals[round] ?? totals.at(-1) ?? 0,
+          gained: card.scores[round] ?? 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+
+    // Sit beside the guide, on whichever side has more room
+    const side =
+      x > canvasSize.width / 2
+        ? { right: canvasSize.width - x + tooltipGap }
+        : { left: x + tooltipGap };
+
+    return (
+      <div className="plot-readout" style={{ top: padding.top, ...side }} aria-hidden="true">
+        <div className="plot-readout-title">{round === 0 ? "Start" : `Round ${round}`}</div>
+        {rows.map(({ card, total, gained }) => (
+          <div
+            key={card.id}
+            className={clsx("plot-readout-row", { highlighted: card.id === highlightedPlayerId })}
+          >
+            <span className="plot-readout-swatch" style={{ backgroundColor: card.color }} />
+            <span className="plot-readout-name">{card.playerName}</span>
+            <span className="plot-readout-total">{total}</span>
+            <span className="plot-readout-gained">
+              {round === 0 ? "" : gained > 0 ? `+${gained}` : gained}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="plot-scores-content">
-      <div className="plot-area" ref={plotAreaRef}>
+      <div
+        className="plot-area"
+        ref={plotAreaRef}
+        onPointerMove={onPointerMove}
+        onPointerDown={onPointerMove}
+        onPointerLeave={onPointerLeave}
+      >
         <svg
           className="plot-canvas"
           viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
@@ -139,9 +245,11 @@ export function PlotScoresComponent() {
             <>
               {renderAxes()}
               {renderScorePlots()}
+              {hover !== null && renderHoverMarks(hover)}
             </>
           )}
         </svg>
+        {hover !== null && renderReadout(hover)}
         {!hasData && (
           <div className="plot-empty">
             <div className="plot-empty-title">Nothing to plot yet</div>

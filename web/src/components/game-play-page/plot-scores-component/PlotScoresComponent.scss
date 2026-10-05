@@ -11,6 +11,9 @@
   height: 100%;
   position: relative;
   background-color: $gray-1;
+  cursor: crosshair;
+  touch-action: none; // So that dragging a finger over the plot moves the readout instead of scrolling
+  user-select: none;
 }
 
 .plot-canvas {
@@ -51,6 +54,20 @@
     stroke-width: 2;
     stroke-linejoin: round;
     stroke-linecap: round;
+    transition: stroke-width 100ms ease;
+  }
+
+  // While the mouse is over a player in the player list, their line stands out and the rest fade
+  .plot-player {
+    transition: opacity 100ms ease;
+
+    &.dimmed {
+      opacity: 0.2;
+    }
+
+    &.highlighted .plot-line {
+      stroke-width: 3.5;
+    }
   }
 
   // Marks where each player ended up. The outline separates dots that land close together.
@@ -58,6 +75,88 @@
     fill: currentColor;
     stroke: $gray-1;
     stroke-width: 1.5;
+  }
+}
+
+// Marks for the round being pointed at
+.plot-canvas {
+  .plot-guide {
+    stroke: rgba(white, 0.35);
+    stroke-dasharray: 4 4;
+  }
+
+  .plot-hover-dot {
+    fill: currentColor;
+    stroke: $gray-1;
+    stroke-width: 1.5;
+
+    &.dimmed {
+      opacity: 0.2;
+    }
+  }
+}
+
+// The scores for the round being pointed at
+.plot-readout {
+  position: absolute;
+  max-height: calc(100% - 40px);
+  overflow: hidden;
+  padding: 8px 12px 10px;
+  background-color: rgba($gray-2, 0.94);
+  border: 1px solid $gray-4;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(black, 0.5);
+  color: $light-elements;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+
+  .plot-readout-title {
+    margin-bottom: 6px;
+    color: rgba($light-elements, 0.55);
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .plot-readout-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 1px 0;
+
+    &.highlighted {
+      font-weight: bold;
+    }
+  }
+
+  .plot-readout-swatch {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+
+  .plot-readout-name {
+    flex: 1;
+    min-width: 70px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .plot-readout-total {
+    min-width: 36px;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .plot-readout-gained {
+    min-width: 30px;
+    color: rgba($light-elements, 0.55);
+    text-align: right;
   }
 }
 

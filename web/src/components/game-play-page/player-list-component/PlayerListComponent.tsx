@@ -22,6 +22,7 @@ export function PlayerListComponent({
   onSelectPlayer,
   onPrevRound,
   onNextRound,
+  onHighlightPlayer,
   editing,
 }: {
   round: number;
@@ -29,6 +30,8 @@ export function PlayerListComponent({
   onSelectPlayer: (id: string) => void;
   onPrevRound: () => void;
   onNextRound: () => void;
+  /** Called with a player's id while the mouse is over that player, and with "" when it leaves */
+  onHighlightPlayer: (id: string) => void;
   editing: boolean;
 }) {
   const { game, updateGame } = useGame();
@@ -190,6 +193,8 @@ export function PlayerListComponent({
                 dragging: dragId === card.id,
               })}
               onClick={() => onSelectPlayer(card.id)}
+              onMouseEnter={() => onHighlightPlayer(card.id)}
+              onMouseLeave={() => onHighlightPlayer("")}
               ref={(el) => {
                 if (el) playerRefs.current.set(card.id, el);
                 else playerRefs.current.delete(card.id);

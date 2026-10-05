@@ -27,6 +27,8 @@ export function GamePlayPage() {
   // Continuing a game picks up at its latest round; a new game starts at round 1
   const [currentRound, setCurrentRound] = useState(() => Math.max(1, lastRound(game)));
   const [editing, setEditing] = useState(startInEditMode);
+  // The player the mouse is over in the player list, whose line the plot emphasizes
+  const [highlightedPlayerId, setHighlightedPlayerId] = useState("");
   // A new game starts with its name selected, ready to be typed over (only the first time it shows)
   const selectGameName = useRef(startInEditMode);
   const gameNameRef = useRef<HTMLDivElement>(null);
@@ -152,6 +154,7 @@ export function GamePlayPage() {
               round={currentContent === "keypad" ? currentRound : -1}
               selectedPlayerId={selectedPlayerId}
               onSelectPlayer={setSelectedPlayerId}
+              onHighlightPlayer={setHighlightedPlayerId}
               onPrevRound={prevRound}
               onNextRound={nextRound}
               editing={editing}
@@ -184,7 +187,9 @@ export function GamePlayPage() {
             onPrevRound={prevRound}
           />
         )}
-        {currentContent === "plot" && <PlotScoresComponent />}
+        {currentContent === "plot" && (
+          <PlotScoresComponent highlightedPlayerId={highlightedPlayerId} />
+        )}
         {currentContent === "table" && <ScoreTableComponent onScoreSelected={onScoreSelected} />}
       </div>
     </div>
