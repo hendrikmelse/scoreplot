@@ -1,4 +1,11 @@
-import { createGame, gameReducer, nextPlayerColor, type Game, type UpdateGameAction } from "@/Game";
+import {
+  createGame,
+  gameReducer,
+  isUntouched,
+  nextPlayerColor,
+  type Game,
+  type UpdateGameAction,
+} from "@/Game";
 import { defaultColors } from "@/config";
 
 function makeGame(scores: number[][] = [[0], [0]]): Game {
@@ -158,5 +165,92 @@ describe("gameReducer", () => {
       const game = reduce(makeGame([]), { type: "trim_scores" });
       expect(game.scorecards).toEqual([]);
     });
+  });
+});
+
+describe("load_game", () => {
+  it("replaces the whole game", () => {
+    const other = makeGame([[0, 9]]);
+    expect(reduce(makeGame(), { type: "load_game", game: other })).toEqual(other);
+  });
+});
+
+describe("restore_player", () => {
+  const card = { id: "gone", playerName: "Gone", color: "#123456", scores: [0, 7] };
+
+  it("puts the player back where it was", () => {
+    const game = reduce(makeGame([[0], [0], [0]]), { type: "restore_player", card, index: 1 });
+    expect(game.scorecards.map((c) => c.id)).toEqual(["p1", "gone", "p2", "p3"]);
+    expect(game.scorecards[1]).toEqual(card);
+  });
+
+  it("goes at the end if the list is now shorter than it was", () => {
+    const game = reduce(makeGame([[0]]), { type: "restore_player", card, index: 5 });
+    expect(game.scorecards.map((c) => c.id)).toEqual(["p1", "gone"]);
+  });
+
+  it("goes at the start for an index before it", () => {
+    const game = reduce(makeGame([[0]]), { type: "restore_player", card, index: -3 });
+    expect(game.scorecards.map((c) => c.id)).toEqual(["gone", "p1"]);
+  });
+
+  it("does not add a player that is already there", () => {
+    const once = reduce(makeGame(), { type: "restore_player", card, index: 0 });
+    const twice = reduce(once, { type: "restore_player", card, index: 0 });
+    expect(twice.scorecards.filter((c) => c.id === "gone")).toHaveLength(1);
+  });
+
+  it("undoes a delete exactly", () => {
+    const before = makeGame([
+      [0, 1],
+      [0, 2],
+      [0, 3],
+    ]);
+    const index = 1;
+    const deleted = before.scorecards[index]!;
+    const after = reduce(
+      before,
+      { type: "delete_player", playerId: deleted.id },
+      { type: "restore_player", card: deleted, index },
+    );
+    expect(after).toEqual(before);
+  });
+});
+
+describe("isUntouched", () => {
+  it("is true for a new game", () => {
+    expect(isUntouched(createGame())).toBe(true);
+  });
+
+  it("is false once anything has been changed", () => {
+    const fresh = createGame();
+    const id = fresh.scorecards[0]!.id;
+    expect(isUntouched(reduce(fresh, { type: "update_name", newName: "Rummy" }))).toBe(false);
+    expect(
+      isUntouched(
+        reduce(fresh, { type: "change_player_name", playerId: id, newPlayerName: "Ada" }),
+      ),
+    ).toBe(false);
+    expect(
+      isUntouched(reduce(fresh, { type: "add_score", playerId: id, round: 1, score: 4 })),
+    ).toBe(false);
+    expect(
+      isUntouched(
+        reduce(fresh, {
+          type: "add_player",
+          newPlayerId: "x",
+          newPlayerName: "P",
+          newPlayerColor: "#000",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for a game with nobody in it", () => {
+    expect(isUntouched(makeGame([]))).toBe(false);
+  });
+
+  it("does not mind empty rounds", () => {
+    expect(isUntouched(reduce(createGame(), { type: "add_round", round: 3 }))).toBe(true);
   });
 });

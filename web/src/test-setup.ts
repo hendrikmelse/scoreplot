@@ -9,3 +9,8 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+
+// The game is saved in storage, which every test in a file shares. Start each one without a saved game.
+beforeEach(() => {
+  localStorage.clear();
+});

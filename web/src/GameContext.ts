@@ -4,6 +4,8 @@ import type { Game, UpdateGameAction } from "@/Game";
 interface GameContextValue {
   game: Game;
   updateGame: React.Dispatch<UpdateGameAction>;
+  /** Whether there is a game to continue, rather than just the blank one the app starts with */
+  hasGame: boolean;
 }
 
 export const GameContext = createContext<GameContextValue | null>(null);

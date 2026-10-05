@@ -1,21 +1,20 @@
 import "./App.scss";
-import { useReducer } from "react";
+import { useState } from "react";
 import { Routes, Route, useSearchParams } from "react-router-dom";
-import { createGame, gameReducer } from "@/Game";
-import { createDemoGame } from "@/demoGame";
+import { usePersistentGame } from "@/usePersistentGame";
 import { GameContext } from "@/GameContext";
 import { TitlePage } from "@/components/title-page/TitlePage";
 import { GamePlayPage } from "@/components/game-play-page/GamePlayPage";
 
 export default function App() {
-  // Opening the app with "?demo" in the URL starts with an example game to look at
+  // Opening the app with "?demo" in the URL starts with an example game to look at. This is only
+  // looked at once, as the "?demo" is gone from the URL as soon as the app goes to another page.
   const [searchParams] = useSearchParams();
-  const [game, updateGame] = useReducer(gameReducer, searchParams.has("demo"), (demo) =>
-    demo ? createDemoGame() : createGame(),
-  );
+  const [demo] = useState(() => searchParams.has("demo"));
+  const { game, updateGame, hasGame } = usePersistentGame(demo);
 
   return (
-    <GameContext value={{ game, updateGame }}>
+    <GameContext value={{ game, updateGame, hasGame }}>
       <Routes>
         <Route path="/" element={<TitlePage />} />
         <Route path="/play/" element={<GamePlayPage />} />

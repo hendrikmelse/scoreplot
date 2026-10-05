@@ -159,12 +159,21 @@ describe("title page", () => {
     expect(container.querySelectorAll(".player")).toHaveLength(1);
   });
 
+  it("has nothing to continue until a game has been started", () => {
+    renderApp("/");
+    const button = screen.getByRole("button", { name: /Continue Game/ });
+    expect(button.hasAttribute("disabled")).toBe(true);
+  });
+
   it("continues the current game outside of edit mode", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/");
 
+    await user.click(screen.getByText("Start New Game"));
+    await user.click(container.querySelector(".button-home")!);
     await user.click(screen.getByText("Continue Game"));
 
+    expect(container.querySelector(".game-play-background")).not.toBeNull();
     expect(container.querySelector(".player.editing")).toBeNull();
     expect(screen.queryByText("Edit Players")).toBeNull();
   });
@@ -949,5 +958,106 @@ describe("game play page", () => {
     await user.click(container.querySelectorAll(".buttons-section button")[1]!);
 
     expect(container.querySelector(".plot-scores-content")).not.toBeNull();
+  });
+});
+
+describe("saving the game", () => {
+  const savedGame = () => JSON.parse(localStorage.getItem("scorekeeper.game") ?? "null");
+  const continueButton = () => screen.getByRole("button", { name: /Continue Game/ });
+
+  it("does not save a game nobody has done anything to", () => {
+    renderApp("/");
+    renderApp("/play/");
+    expect(localStorage.getItem("scorekeeper.game")).toBeNull();
+  });
+
+  it("saves the game as it changes", () => {
+    const { container } = renderApp("/play/");
+
+    fireEvent.keyDown(window, { key: "7" });
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    expect(savedGame().version).toBe(1);
+    expect(savedGame().game.scorecards[0].scores[1]).toBe(7);
+    expect(shownScores(container)).toEqual(["7"]);
+  });
+
+  it("brings the game back after a reload, and Continue Game picks it up", async () => {
+    const user = userEvent.setup();
+    const first = renderApp("/play/");
+    await user.click(first.container.querySelector(".button-edit")!);
+    await user.clear(first.container.querySelector(".game-name-input")!);
+    await user.type(first.container.querySelector(".game-name-input")!, "Rummy");
+    await user.click(first.container.querySelector(".button-edit")!);
+    fireEvent.keyDown(window, { key: "9" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    first.unmount(); // Closing the page
+
+    const second = renderApp("/");
+    expect(continueButton().hasAttribute("disabled")).toBe(false);
+    expect(screen.getByText("Rummy")).toBeTruthy();
+    await user.click(screen.getByText("Continue Game"));
+    expect(shownScores(second.container)).toEqual(["9"]);
+  });
+
+  it("starts a new game over the saved one", async () => {
+    const user = userEvent.setup();
+    const first = renderApp("/play/");
+    fireEvent.keyDown(window, { key: "5" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    first.unmount();
+
+    const second = renderApp("/");
+    await user.click(screen.getByText("Start New Game"));
+
+    expect(savedGame().game.name).toBe("New Game");
+    expect(savedGame().game.scorecards[0].scores).toEqual([0]);
+    expect(second.container.querySelectorAll(".player")).toHaveLength(1);
+  });
+
+  it("starts fresh when the saved game is damaged", () => {
+    localStorage.setItem("scorekeeper.game", "{not json");
+    renderApp("/");
+    expect(continueButton().hasAttribute("disabled")).toBe(true);
+  });
+
+  describe("the demo game", () => {
+    const realGame = {
+      version: 1,
+      game: {
+        id: "real",
+        name: "My Real Game",
+        scorecards: [{ id: "p", playerName: "Me", color: "#e6194b", scores: [0, 3] }],
+      },
+    };
+
+    it("is not read from or written to storage, so it can never replace a real game", async () => {
+      const user = userEvent.setup();
+      localStorage.setItem("scorekeeper.game", JSON.stringify(realGame));
+      const before = localStorage.getItem("scorekeeper.game");
+
+      const { container } = renderApp("/?demo");
+      expect(screen.getByText("Friday Night Rummy")).toBeTruthy();
+      expect(screen.queryByText("My Real Game")).toBeNull();
+
+      // Play: the "?demo" has gone from the address by now, but it is still the demo game
+      await user.click(screen.getByText("Continue Game"));
+      fireEvent.keyDown(window, { key: "4" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".add-player-button")!);
+
+      expect(localStorage.getItem("scorekeeper.game")).toBe(before);
+    });
+
+    it("does not leave anything in storage when there was nothing there", async () => {
+      const user = userEvent.setup();
+      renderApp("/?demo");
+      await user.click(screen.getByText("Continue Game"));
+      fireEvent.keyDown(window, { key: "4" });
+      fireEvent.keyDown(window, { key: "Enter" });
+
+      expect(localStorage.getItem("scorekeeper.game")).toBeNull();
+    });
   });
 });

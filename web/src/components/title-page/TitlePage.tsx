@@ -4,7 +4,7 @@ import { useGame } from "@/GameContext";
 
 export function TitlePage() {
   const navigate = useNavigate();
-  const { game, updateGame } = useGame();
+  const { game, updateGame, hasGame } = useGame();
 
   function startNewGame() {
     updateGame({ type: "new_game" });
@@ -18,9 +18,13 @@ export function TitlePage() {
         <button className="button button-large" onClick={startNewGame}>
           Start New Game
         </button>
-        <button className="button button-large" onClick={() => navigate("/play")}>
+        <button
+          className="button button-large"
+          disabled={!hasGame}
+          onClick={() => navigate("/play")}
+        >
           <div className="continue-game-text">Continue Game</div>
-          <div className="continue-game-name">{game.name}</div>
+          {hasGame && <div className="continue-game-name">{game.name}</div>}
         </button>
       </div>
     </div>

@@ -33,6 +33,18 @@ export function createGame(): Game {
   };
 }
 
+/** Whether nothing has been done to a game yet since it was created */
+export function isUntouched(game: Game): boolean {
+  const [only, ...others] = game.scorecards;
+  return (
+    game.name === "New Game" &&
+    only !== undefined &&
+    others.length === 0 &&
+    only.playerName === "Player 1" &&
+    only.scores.every((score) => score === 0)
+  );
+}
+
 /** The first default color that no player is using yet, then generated colors once those run out */
 export function nextPlayerColor(game: Game): string {
   const used = new Set(game.scorecards.map((card) => card.color));
@@ -49,9 +61,11 @@ export function nextPlayerColor(game: Game): string {
 
 export type UpdateGameAction =
   | { type: "new_game" }
+  | { type: "load_game"; game: Game } // Replace the whole game, e.g. to undo starting a new one
   | { type: "update_name"; newName: string }
   | { type: "add_player"; newPlayerId: string; newPlayerName: string; newPlayerColor: string }
   | { type: "delete_player"; playerId: string }
+  | { type: "restore_player"; card: Scorecard; index: number } // Put a deleted player back
   | { type: "change_player_color"; playerId: string; newColor: string }
   | { type: "change_player_name"; playerId: string; newPlayerName: string }
   | { type: "move_player"; playerId: string; direction: "up" | "down" }
@@ -65,6 +79,8 @@ export const gameReducer = produce((draft: Game, action: UpdateGameAction): Game
   switch (action.type) {
     case "new_game":
       return createGame();
+    case "load_game":
+      return action.game;
     case "update_name":
       draft.name = action.newName;
       break;
@@ -81,6 +97,13 @@ export const gameReducer = produce((draft: Game, action: UpdateGameAction): Game
       if (index >= 0) draft.scorecards.splice(index, 1);
       break;
     }
+    case "restore_player":
+      // Back where it was, or as near as the list now allows. Never twice.
+      if (!findCard(action.card.id)) {
+        const index = Math.min(Math.max(action.index, 0), draft.scorecards.length);
+        draft.scorecards.splice(index, 0, action.card);
+      }
+      break;
     case "change_player_color": {
       const card = findCard(action.playerId);
       if (card) card.color = action.newColor;
