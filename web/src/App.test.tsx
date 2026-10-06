@@ -978,6 +978,23 @@ describe("game play page", () => {
         expect(container.querySelector(".plot-readout")).not.toBeNull();
       });
 
+      it("goes away when a finger taps outside the plot", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+        fireEvent.pointerDown(plotArea, { clientX: plotRight, pointerType: "touch" });
+        expect(container.querySelector(".plot-readout")).not.toBeNull();
+
+        fireEvent.pointerDown(container.querySelector(".player")!, { pointerType: "touch" });
+        expect(container.querySelector(".plot-readout")).toBeNull();
+        expect(container.querySelector(".plot-guide")).toBeNull();
+      });
+
+      it("stays when a finger taps inside the plot again", async () => {
+        const { container, plotArea } = await twoPlayersTwoRounds();
+        fireEvent.pointerDown(plotArea, { clientX: plotRight, pointerType: "touch" });
+        fireEvent.pointerDown(plotArea, { clientX: plotLeft, pointerType: "touch" });
+        expect(container.querySelector(".plot-readout-title")!.textContent).toBe("Start");
+      });
+
       it("does nothing when there is nothing to plot", async () => {
         const { container } = renderApp();
         await openPlot(container);

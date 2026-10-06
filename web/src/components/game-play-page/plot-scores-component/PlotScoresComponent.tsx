@@ -67,6 +67,18 @@ export function PlotScoresComponent({ highlightedPlayerId }: { highlightedPlayer
   // The round being pointed at, which can be gone by the time we render if the game shrank
   const hover = hasData && hoverRound !== null ? Math.min(hoverRound, maxRound) : null;
 
+  // With a finger there is no moving off the plot to clear the readout, so a tap anywhere else does
+  const showingReadout = hoverRound !== null;
+  useEffect(() => {
+    if (!showingReadout) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") return; // The mouse clears it by leaving
+      if (!plotAreaRef.current?.contains(e.target as Node)) setHoverRound(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showingReadout]);
+
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!hasData) return;
     const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
