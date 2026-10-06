@@ -15,7 +15,7 @@ npm run install:all
 npm run dev        # http://localhost:5173
 ```
 
-To look around with some example data, open <http://localhost:5173/?demo> and press "Continue Game".
+To look around with some example data, open <http://localhost:5173/?demo> and press "Continue Game". (This only works in development; production builds ignore `?demo`.)
 ("Start New Game" always starts blank.)
 
 Other scripts (run from the repo root): `build`, `typecheck`, `lint`, `format`, `test`.

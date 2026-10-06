@@ -17,7 +17,8 @@ interface PersistentGame {
  */
 export function usePersistentGame(demo: boolean): PersistentGame {
   const [initial] = useState(() => {
-    if (demo) return { game: createDemoGame(), hasGame: true };
+    // The DEV check lets production builds drop the demo game from the bundle
+    if (import.meta.env.DEV && demo) return { game: createDemoGame(), hasGame: true };
     const saved = loadSavedGame();
     return saved ? { game: saved, hasGame: true } : { game: createGame(), hasGame: false };
   });

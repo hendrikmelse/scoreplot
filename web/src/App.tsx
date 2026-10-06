@@ -11,8 +11,9 @@ import { GamePlayPage } from "@/components/game-play-page/GamePlayPage";
 export default function App() {
   // Opening the app with "?demo" in the URL starts with an example game to look at. This is only
   // looked at once, as the "?demo" is gone from the URL as soon as the app goes to another page.
+  // It is only available in development: production builds ignore it.
   const [searchParams] = useSearchParams();
-  const [demo] = useState(() => searchParams.has("demo"));
+  const [demo] = useState(() => import.meta.env.DEV && searchParams.has("demo"));
   const { game, updateGame, hasGame } = usePersistentGame(demo);
   useBlurAfterPointerClick();
 
