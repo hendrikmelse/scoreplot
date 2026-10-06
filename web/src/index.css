@@ -51,6 +51,13 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* The page's own background, behind everything. Without it the browser's white shows wherever the app
+   doesn't reach, such as under the phone's gesture bar, or while overscrolling. */
+html {
+  background-color: #000;
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   font-family:
