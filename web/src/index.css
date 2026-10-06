@@ -21,7 +21,7 @@
      https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=<names, in alphabetical order, with commas between>&display=block
    (asked for with a browser's User-Agent, to get woff2), and the file its src points to.
    Now: add, backspace, check, chevron_left, chevron_right, close, delete, dialpad, drag_handle,
-   edit, home, keyboard_return, stacked_line_chart, table */
+   edit, fullscreen, fullscreen_exit, home, keyboard_return, stacked_line_chart, table */
 @font-face {
   font-family: "Material Symbols Outlined";
   font-style: normal;
@@ -73,6 +73,11 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* No flash of color over what is tapped, on a phone */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,

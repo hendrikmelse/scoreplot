@@ -10,6 +10,9 @@ $tab-flare: 8px;
 .game-play-background {
   display: flex;
   align-items: center;
+  // Moved up while the keyboard would cover the text box being edited (see useKeepAboveKeyboard)
+  transform: translateY(calc(var(--keyboard-shift, 0px) * -1));
+  transition: transform 150ms ease-out;
 }
 
 .left-section {
@@ -33,6 +36,7 @@ $tab-flare: 8px;
       width: 80px;
       display: flex;
       flex-direction: column;
+      gap: 10px;
 
       button {
         flex: 1;
@@ -61,6 +65,15 @@ $tab-flare: 8px;
         .home-chevron {
           margin-left: -6px;
           margin-right: -9px;
+        }
+      }
+
+      // Fullscreen, under Home. Smaller icon and centered, as it is not about going back.
+      .button-fullscreen {
+        justify-content: center;
+
+        span {
+          font-size: 28px;
         }
       }
     }
@@ -270,14 +283,15 @@ $tab-flare: 8px;
   border-bottom-left-radius: 16px;
 }
 
-// On portrait screens everything is stacked: the header, the tabs, the content, then the list
+// On portrait screens everything is stacked: the header, the list, the content, then the tabs
 @include stacked {
   .game-play-background {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) minmax(160px, 36%);
+    grid-template-rows: auto minmax(160px, 36%) minmax(0, 1fr) auto;
     gap: 10px;
-    padding: 12px;
+    // More room above and below than at the sides, as a phone's screen has rounded corners
+    padding: 28px 12px;
     align-items: stretch;
   }
 
@@ -301,6 +315,10 @@ $tab-flare: 8px;
         width: 64px;
         border-left: 1px solid $gray-4;
         border-radius: 16px;
+      }
+
+      .button-fullscreen {
+        width: 48px;
       }
     }
 
@@ -331,7 +349,7 @@ $tab-flare: 8px;
 
   .left-section .bottom-left-section {
     .buttons-section {
-      grid-row: 2;
+      grid-row: 4;
       height: auto;
       flex-direction: row;
       gap: 10px;
@@ -378,7 +396,7 @@ $tab-flare: 8px;
     }
 
     .player-list-section {
-      grid-row: 4;
+      grid-row: 2;
       border-left: 1px solid $gray-4;
       border-radius: 16px;
     }
