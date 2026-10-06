@@ -4,7 +4,9 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 24px;
+  // Above the on-screen keyboard when it is covering the bottom of the page (see ToastProvider)
+  bottom: calc(24px + var(--keyboard-inset, 0px));
+  transition: bottom 150ms ease-out;
   z-index: 20; // Above everything, including the color picker
   display: flex;
   flex-direction: column;

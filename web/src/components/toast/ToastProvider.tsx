@@ -16,10 +16,49 @@ const LEAVE_MS = 350;
 /** How long a toast is fully there for, before it fades back to wait out the rest of its time */
 const FRESH_MS = 2000;
 
+/**
+ * While a text box has the focus, how much of the bottom of the page the phone's keyboard covers.
+ * In Chrome the keyboard covers the page rather than shrinking it, so what is fixed to the bottom
+ * has to be moved up by hand. A pinch zoom shrinks the visual viewport too, so it only counts when
+ * the keyboard is what it is for.
+ */
+function useKeyboardInset(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const element = ref.current;
+    if (!viewport || !element) return;
+
+    const update = () => {
+      const active = document.activeElement;
+      const typing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+      const covered = typing
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      element.style.setProperty("--keyboard-inset", `${covered}px`);
+    };
+    // Focus has not moved yet when it is being left, so look once it has
+    const afterFocusMoves = () => setTimeout(update, 0);
+
+    update();
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", afterFocusMoves);
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusout", afterFocusMoves);
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    };
+  }, [ref]);
+}
+
 /** Shows brief messages, some with a button (like Undo), over whatever page the app is on */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ActiveToast[]>([]);
   const nextId = useRef(0);
+  const toastsRef = useRef<HTMLDivElement>(null);
+  useKeyboardInset(toastsRef);
 
   // Toasts go by falling away first, and are removed from the list once they have
   const startLeaving = useCallback((id: number) => {
@@ -53,7 +92,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext value={value}>
       {children}
-      <div className="toasts" role="status" aria-live="polite">
+      <div className="toasts" ref={toastsRef} role="status" aria-live="polite">
         {toasts.map((toast) => (
           <ToastView key={toast.id} toast={toast} onLeave={startLeaving} onRemove={remove} />
         ))}
