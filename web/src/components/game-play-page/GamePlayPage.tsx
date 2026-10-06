@@ -29,6 +29,8 @@ export function GamePlayPage() {
   const { game, updateGame } = useGame();
   useKeepAboveKeyboard();
   const [currentContent, setCurrentContent] = useState<Content>("keypad");
+  // On a stacked layout, the list can grow down over the space of the main panel
+  const [listExpanded, setListExpanded] = useState(false);
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   // Continuing a game picks up at its latest round; a new game starts at round 1
   const [currentRound, setCurrentRound] = useState(() => Math.max(1, lastRound(game)));
@@ -111,15 +113,15 @@ export function GamePlayPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [editing, exitEditMode]);
 
-  // Let go of a pinned player when pressing anywhere outside the player list, other than on a
-  // button (a tab, say, which can decide for itself whether to let go)
+  // Let go of a pinned player when pressing anywhere, other than on a button (a tab, say, which can
+  // decide for itself whether to let go) or a player, which pins or unpins them as it is pressed
   useEffect(() => {
     if (pinnedPlayerId === "") return;
 
     function onPointerDown(event: PointerEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      if (playerListRef.current?.contains(target)) return;
+      if (playerListRef.current?.contains(target) && target.closest(".player")) return;
       if (target.closest("button")) return;
       setPinnedPlayerId("");
     }
@@ -148,6 +150,7 @@ export function GamePlayPage() {
   }
 
   function changeContent(content: Content) {
+    setListExpanded(false);
     if (content !== "plot") setPinnedPlayerId("");
     if (content === "plot" || content === "table") {
       // Delete any trailing rounds that are all zeros
@@ -195,7 +198,7 @@ export function GamePlayPage() {
   }
 
   return (
-    <div className="background game-play-background">
+    <div className={clsx("background game-play-background", { "list-expanded": listExpanded })}>
       <div className="left-section">
         <div className="top-left-section">
           <div className="top-buttons-section">
@@ -264,15 +267,31 @@ export function GamePlayPage() {
               onStartEditing={() => setEditing(true)}
               onFinishEditing={exitEditMode}
             />
+            {/* Not with the keypad, which needs the list beside it to pick who the score is for */}
+            {currentContent !== "keypad" && (
+              <button
+                className="expand-list-button"
+                aria-label={listExpanded ? "Shrink player list" : "Expand player list"}
+                title={listExpanded ? "Shrink player list" : "Expand player list"}
+                aria-expanded={listExpanded}
+                onClick={() => setListExpanded(!listExpanded)}
+              >
+                {/* Two chevrons, one above the other, as the icon font has no double one */}
+                <span className="double-chevron" aria-hidden="true">
+                  <span className="material-symbols-outlined">chevron_right</span>
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </span>
+              </button>
+            )}
           </div>
           <div className="buttons-section" role="tablist" aria-label="View">
             {contentButtons.map(({ content, icon, label }) => (
               <button
                 key={content}
                 role="tab"
-                aria-selected={currentContent === content}
+                aria-selected={currentContent === content && !listExpanded}
                 title={label}
-                className={clsx({ selected: currentContent === content })}
+                className={clsx({ selected: currentContent === content && !listExpanded })}
                 onClick={() => changeContent(content)}
               >
                 <span className="material-symbols-outlined" aria-hidden="true">

@@ -79,9 +79,10 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
     cursor: pointer;
     font-size: clamp(24px, 5vmin, 42px);
     font-weight: bold;
+    // This is how a key lets go: slowly enough to be seen. Pressing in is quicker, below.
     transition:
-      transform 60ms ease,
-      filter 60ms ease;
+      transform 160ms ease-out,
+      filter 160ms ease-out;
 
     // Keys that aren't digits are a step darker, so that the digits stand out
     &.key-negate,
@@ -101,28 +102,29 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
       font-size: clamp(28px, 6vmin, 46px);
     }
 
-    // Only for devices that can hover. On a touchscreen, :hover sticks after a tap.
-    @media (hover: hover) {
-      &:hover {
-        filter: brightness(1.3);
-      }
+    // `.hovered` is only set for a real mouse. On a touchscreen, :hover sticks after a tap, even on
+    // a computer that has a mouse as well.
+    &.hovered {
+      filter: brightness(1.3);
+    }
 
-      &.key-enter:hover {
-        filter: brightness(0.9);
-      }
+    &.key-enter.hovered {
+      filter: brightness(0.9);
     }
 
     // Instant feedback that a tap landed. `.pressed` is set from pointer events, which is what
     // works on touchscreens; `:active` also covers pressing a focused key with the keyboard.
+    // Sunk in and lit up
     &:active,
     &.pressed {
-      transform: scale(0.95);
-      filter: brightness(1.6);
+      transform: scale(0.88);
+      filter: brightness(1.8);
+      transition-duration: 30ms;
     }
 
     &.key-enter:active,
     &.key-enter.pressed {
-      filter: brightness(0.8);
+      filter: brightness(0.7);
     }
 
     &:focus-visible {

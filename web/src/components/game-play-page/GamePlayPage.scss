@@ -173,11 +173,17 @@ $tab-flare: 8px;
       display: flex; // The round buttons and the add player button stay put, the list scrolls
       flex-direction: column;
       overflow: hidden;
+      position: relative; // For the button that expands it, in the corner
       background-color: $gray-1;
       border: 1px solid $gray-4;
       border-left: 0;
       border-top-right-radius: 16px;
       border-bottom-right-radius: 16px;
+
+      // Only for the stacked layout, where there is room below to grow into
+      .expand-list-button {
+        display: none;
+      }
     }
 
     // The tabs for the keypad, the plot and the table. Side by side, they hang off the left edge
@@ -399,6 +405,66 @@ $tab-flare: 8px;
       grid-row: 2;
       border-left: 1px solid $gray-4;
       border-radius: 16px;
+
+      // Small, in the lower right, and over the list rather than taking room from it. Styled like the
+      // Edit players button: quiet until it is pointed at.
+      .expand-list-button {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        z-index: 1;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: $gray-1;
+        border: 1px solid $gray-3;
+        border-radius: 12px;
+        color: rgba($light-elements, 0.45);
+        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+          transform 60ms ease,
+          background-color 60ms ease,
+          border-color 60ms ease,
+          color 60ms ease;
+
+        @media (hover: hover) {
+          &:hover:not(:active) {
+            background-color: $gray-2;
+            border-color: $gray-5;
+            color: $light-elements;
+          }
+        }
+
+        &:active {
+          transform: scale(0.94);
+          background-color: $gray-4;
+        }
+
+        &:focus-visible {
+          outline: 2px solid $light-elements;
+          outline-offset: 2px;
+        }
+
+        // Two chevrons pointing down, overlapping so that they read as one icon
+        .double-chevron {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          .material-symbols-outlined {
+            font-size: 22px;
+            transform: rotate(90deg);
+
+            + .material-symbols-outlined {
+              margin-top: -13px;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -407,6 +473,21 @@ $tab-flare: 8px;
     height: auto;
     border-right: 1px solid $gray-4;
     border-radius: 16px;
+  }
+
+  // The list takes the main panel's place, which stays where it is but out of sight
+  .list-expanded {
+    .left-section .bottom-left-section .player-list-section {
+      grid-row: 2 / 4;
+
+      .expand-list-button .double-chevron {
+        transform: rotate(180deg); // Pointing up: shrink
+      }
+    }
+
+    .content-section {
+      display: none;
+    }
   }
 }
 

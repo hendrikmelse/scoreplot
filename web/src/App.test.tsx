@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
@@ -324,28 +324,74 @@ describe("game play page", () => {
       expect(shownScores(container)[0]).toBe("-1");
     });
 
-    it("shows a key as pressed for as long as it is being pressed", () => {
-      const { container } = renderApp();
-      const five = key(container, "5");
+    it("shows a key as pressed until the finger lets go, and for long enough to be seen", () => {
+      vi.useFakeTimers();
+      try {
+        const { container } = renderApp();
+        const five = key(container, "5");
 
-      expect(five.classList.contains("pressed")).toBe(false);
-      fireEvent.pointerDown(five);
-      expect(five.classList.contains("pressed")).toBe(true);
-      fireEvent.pointerUp(five);
-      expect(five.classList.contains("pressed")).toBe(false);
+        expect(five.classList.contains("pressed")).toBe(false);
+        fireEvent.pointerDown(five);
+        expect(five.classList.contains("pressed")).toBe(true);
+        fireEvent.pointerUp(five); // A quick tap: it stays pressed a moment longer
+        expect(five.classList.contains("pressed")).toBe(true);
+        act(() => vi.advanceTimersByTime(200));
+        expect(five.classList.contains("pressed")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("stops looking pressed when the finger slides off or the touch is cancelled", () => {
+      vi.useFakeTimers();
+      try {
+        const { container } = renderApp();
+        const five = key(container, "5");
+
+        fireEvent.pointerDown(five);
+        fireEvent.pointerLeave(five);
+        act(() => vi.advanceTimersByTime(200));
+        expect(five.classList.contains("pressed")).toBe(false);
+
+        fireEvent.pointerDown(five);
+        fireEvent.pointerCancel(five);
+        act(() => vi.advanceTimersByTime(200));
+        expect(five.classList.contains("pressed")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("counts a touch the moment the finger goes down, even if it drifts off the key", () => {
+      const { container } = renderApp();
+      const display = () => container.querySelector(".score-value")!.textContent;
+
+      fireEvent.pointerDown(key(container, "5"), { pointerType: "touch" });
+      expect(display()).toBe("5");
+      fireEvent.pointerLeave(key(container, "5"), { pointerType: "touch" }); // No click follows
+      expect(display()).toBe("5");
+    });
+
+    it("does not count a touch twice when the click follows", () => {
       const { container } = renderApp();
       const five = key(container, "5");
 
-      fireEvent.pointerDown(five);
-      fireEvent.pointerLeave(five);
-      expect(five.classList.contains("pressed")).toBe(false);
+      fireEvent.pointerDown(five, { pointerType: "touch" });
+      fireEvent.pointerUp(five, { pointerType: "touch" });
+      fireEvent.click(five, { detail: 1 });
 
-      fireEvent.pointerDown(five);
-      fireEvent.pointerCancel(five);
-      expect(five.classList.contains("pressed")).toBe(false);
+      expect(container.querySelector(".score-value")!.textContent).toBe("5");
+    });
+
+    it("still counts a key pressed with the keyboard after a touch", () => {
+      const { container } = renderApp();
+      const five = key(container, "5");
+
+      fireEvent.pointerDown(five, { pointerType: "touch" });
+      fireEvent.click(five, { detail: 1 });
+      fireEvent.click(five, { detail: 0 });
+
+      expect(container.querySelector(".score-value")!.textContent).toBe("55");
     });
 
     it("only ever shows one key as pressed", () => {
@@ -358,11 +404,11 @@ describe("game play page", () => {
       expect(key(container, "2").classList.contains("pressed")).toBe(true);
     });
 
-    it("does not enter anything when a press is cancelled before the tap completes", () => {
+    it("does not enter anything when a mouse press is cancelled before the click completes", () => {
       const { container } = renderApp();
 
-      fireEvent.pointerDown(key(container, "8"));
-      fireEvent.pointerCancel(key(container, "8")); // No click follows a cancelled touch
+      fireEvent.pointerDown(key(container, "8"), { pointerType: "mouse" });
+      fireEvent.pointerCancel(key(container, "8"), { pointerType: "mouse" }); // No click follows
 
       expect(container.querySelector(".score-value")!.textContent).toBe("0");
     });
@@ -1904,13 +1950,15 @@ describe("letting go of a pinned player by pressing elsewhere", () => {
     expect(pinned()).toBe(true);
   });
 
-  it("does not happen for a press inside the player list", async () => {
-    const { user, container, pinned } = await withSecondPlayerPinned();
+  it("happens for a press inside the player list, but not on a player", async () => {
+    const first = await withSecondPlayerPinned();
+    await first.user.click(first.container.querySelector(".round-label")!); // The heading of the list
+    expect(first.pinned()).toBe(false);
+    cleanup();
 
-    await user.click(container.querySelector(".round-label")!); // The heading of the list
-    expect(pinned()).toBe(true);
-    await user.click(container.querySelector(".player-list")!); // The list itself, between players
-    expect(pinned()).toBe(true);
+    const second = await withSecondPlayerPinned();
+    await second.user.click(second.container.querySelector(".player-list")!); // Between players
+    expect(second.pinned()).toBe(false);
   });
 
   it("does not happen for a press on another player, which pins that one instead", async () => {

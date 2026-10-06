@@ -373,7 +373,7 @@ $flash-color: rgba($light-elements, 0.35);
 .list-footer {
   flex: none;
   // The room below the list, and the room the list leaves for the panel's corners, make up the gap
-  margin: (12px - $drag-room - $corner-room) 0 16px;
+  margin: (12px - $drag-room - $corner-room) 0 10px; // The bottom lines up with the button that expands the list
   display: flex;
   justify-content: center;
   gap: 12px;

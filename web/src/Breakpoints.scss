@@ -17,3 +17,10 @@
     @content;
   }
 }
+
+/** Phones, in either orientation: narrow in portrait, short in landscape. Room is worth more there. */
+@mixin small-screen {
+  @media (max-width: 600px), (max-height: 560px) {
+    @content;
+  }
+}

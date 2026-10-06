@@ -1,4 +1,5 @@
 @use "../../../Colors.scss" as *;
+@use "../../../Breakpoints.scss" as *;
 
 $round-column-width: 76px;
 $player-column-min-width: 130px;
@@ -18,6 +19,11 @@ $negative: #f08a8a;
     color: rgba($light-elements, 0.5);
     font-size: 13px;
     text-align: center;
+
+    // Not worth the room on a phone, where the scores look pressable enough
+    @include small-screen {
+      display: none;
+    }
   }
 
   // Says the same sort of thing, in the same way, as the plot does when it has nothing to show

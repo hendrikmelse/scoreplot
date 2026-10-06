@@ -1,6 +1,6 @@
 import "./EnterScoresComponent.scss";
 import clsx from "clsx";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { applyKey, parseScore } from "@/utils/scoreInput";
 
 // Laid out by the "key-*" classes in the stylesheet
@@ -31,6 +31,9 @@ const keys = [
   },
 ];
 
+/** How long a key stays pressed in at least, as a quick tap is over before it could be seen */
+const MIN_PRESS_MS = 140;
+
 export function EnterScoresComponent({
   caption,
   editing,
@@ -53,6 +56,29 @@ export function EnterScoresComponent({
   // The key a finger (or the mouse) is currently pressing. The `:active` style isn't dependable on
   // touchscreens: it's delayed, and iOS only applies it if the page listens for touches.
   const [pressedKey, setPressedKey] = useState<string | null>(null);
+  // The key a mouse is over. Not from `:hover`, which a touchscreen on a computer that also has a
+  // mouse leaves stuck on the key that was tapped.
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  // Whether the latest press was a finger's (or a pen's), and so has been counted already
+  const countedOnTouch = useRef(false);
+  const pressedAt = useRef(0);
+  const releaseTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const pressDown = (key: string) => {
+    clearTimeout(releaseTimer.current);
+    pressedAt.current = performance.now();
+    setPressedKey(key);
+  };
+
+  // Lets go, but not before the press has been there long enough to be seen
+  const release = () => {
+    clearTimeout(releaseTimer.current);
+    const remaining = MIN_PRESS_MS - (performance.now() - pressedAt.current);
+    if (remaining <= 0) setPressedKey(null);
+    else releaseTimer.current = setTimeout(() => setPressedKey(null), remaining);
+  };
+
+  useEffect(() => () => clearTimeout(releaseTimer.current), []);
 
   const pressKey = useCallback(
     (key: string) => {
@@ -114,13 +140,30 @@ export function EnterScoresComponent({
       {keys.map(({ key, label, icon, className }) => (
         <button
           key={key}
-          className={clsx("key", className, { pressed: pressedKey === key })}
+          className={clsx("key", className, {
+            pressed: pressedKey === key,
+            hovered: hoveredKey === key,
+          })}
           aria-label={icon ? label : undefined}
-          onClick={() => pressKey(key)}
-          onPointerDown={() => setPressedKey(key)}
-          onPointerUp={() => setPressedKey(null)}
-          onPointerCancel={() => setPressedKey(null)}
-          onPointerLeave={() => setPressedKey(null)}
+          onClick={(e) => {
+            // A touch counted when the finger went down, so that the key that lit up is the key that
+            // was pressed even if the finger drifts off before lifting. (A click from the keyboard has
+            // no position, and is always counted.)
+            if (e.detail > 0 && countedOnTouch.current) return;
+            pressKey(key);
+          }}
+          onPointerDown={(e) => {
+            pressDown(key);
+            countedOnTouch.current = e.pointerType !== "mouse";
+            if (countedOnTouch.current) pressKey(key);
+          }}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onPointerEnter={(e) => e.pointerType === "mouse" && setHoveredKey(key)}
+          onPointerLeave={(e) => {
+            release();
+            if (e.pointerType === "mouse") setHoveredKey(null);
+          }}
         >
           {icon ? (
             <span className="material-symbols-outlined" aria-hidden="true">

@@ -244,6 +244,9 @@ export function PlayerListComponent({
     playerRefs.current.get(id)!.style.removeProperty("transition");
     measurePlayerSpacing();
     measurePlayerPositions();
+    // A finger is tied to the handle it touched, and reordering moves that handle in the page, which
+    // ends the touch. The list stays put, so the drag is held there instead.
+    listRef.current?.setPointerCapture?.(e.pointerId);
     pointerY.current = e.clientY;
     dragStartY.current = e.clientY + (listRef.current?.scrollTop ?? 0);
     setDragDeltaY(0);
