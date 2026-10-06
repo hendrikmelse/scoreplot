@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../../Colors.scss" as *;
+@use "../../Breakpoints.scss" as *;
 
 $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
 
@@ -8,6 +9,30 @@ $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
   // The space below is the bigger, as the card is happier a little above the middle
   padding: 24px 16px calc(24px + 6vh);
   overflow-y: auto; // For a screen too short to fit it all
+}
+
+// Over in the corner, out of the way of the card
+.title-fullscreen {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $gray-1;
+  border: 1px solid $gray-4;
+  border-radius: 16px;
+  color: rgba($light-elements, 0.55); // Quiet, like the Home button
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    background-color: $gray-3;
+  }
 }
 
 .score-lines-backdrop {
@@ -239,5 +264,17 @@ html[data-transition="to-game"]::view-transition-group(root) {
 @keyframes title-card-in {
   from {
     transform: translateX(calc(-100vw - 100%));
+  }
+}
+
+// On a portrait screen, which is a phone, keep clear of its rounded corners
+@include stacked {
+  .title-page-background {
+    padding-top: 40px;
+  }
+
+  .title-fullscreen {
+    top: 24px;
+    right: 16px;
   }
 }

@@ -7,6 +7,7 @@ import { useToast } from "@/ToastContext";
 import { lastRound } from "@/utils/Scores";
 import { runWithTransition, usePageAppeared } from "@/viewTransition";
 import { ScoreLinesBackdrop } from "./ScoreLinesBackdrop";
+import { FullscreenButton } from "@/components/FullscreenButton";
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -38,6 +39,7 @@ export function TitlePage() {
   return (
     <div className="background title-page-background">
       <ScoreLinesBackdrop />
+      <FullscreenButton className="title-fullscreen" />
       <div className="title-page-content">
         <header className="title-block">
           {/* The colors that players are given, as in the player list */}
