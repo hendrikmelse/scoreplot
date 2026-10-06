@@ -749,7 +749,7 @@ describe("game play page", () => {
       const totals = (container: HTMLElement) =>
         Array.from(container.querySelectorAll(".total-cell")).map((cell) => cell.textContent);
       const savedScores = () =>
-        JSON.parse(localStorage.getItem("scorekeeper.game")!).game.scorecards.map(
+        JSON.parse(localStorage.getItem("scoreplot.game")!).game.scorecards.map(
           (card: { scores: number[] }) => card.scores,
         );
 
@@ -1087,13 +1087,13 @@ describe("game play page", () => {
 });
 
 describe("saving the game", () => {
-  const savedGame = () => JSON.parse(localStorage.getItem("scorekeeper.game") ?? "null");
+  const savedGame = () => JSON.parse(localStorage.getItem("scoreplot.game") ?? "null");
   const continueButton = () => screen.getByRole("button", { name: /Continue Game/ });
 
   it("does not save a game nobody has done anything to", () => {
     renderApp("/");
     renderApp("/play/");
-    expect(localStorage.getItem("scorekeeper.game")).toBeNull();
+    expect(localStorage.getItem("scoreplot.game")).toBeNull();
   });
 
   it("saves the game as it changes", () => {
@@ -1141,7 +1141,7 @@ describe("saving the game", () => {
   });
 
   it("starts fresh when the saved game is damaged", () => {
-    localStorage.setItem("scorekeeper.game", "{not json");
+    localStorage.setItem("scoreplot.game", "{not json");
     renderApp("/");
     expect(screen.queryByRole("button", { name: /Continue Game/ })).toBeNull();
   });
@@ -1158,8 +1158,8 @@ describe("saving the game", () => {
 
     it("is not read from or written to storage, so it can never replace a real game", async () => {
       const user = userEvent.setup();
-      localStorage.setItem("scorekeeper.game", JSON.stringify(realGame));
-      const before = localStorage.getItem("scorekeeper.game");
+      localStorage.setItem("scoreplot.game", JSON.stringify(realGame));
+      const before = localStorage.getItem("scoreplot.game");
 
       const { container } = renderApp("/?demo");
       expect(screen.getByText("Friday Night Rummy")).toBeTruthy();
@@ -1172,7 +1172,7 @@ describe("saving the game", () => {
       await user.click(container.querySelector(".done-button, .edit-players-button")!);
       await user.click(container.querySelector(".add-player-button")!);
 
-      expect(localStorage.getItem("scorekeeper.game")).toBe(before);
+      expect(localStorage.getItem("scoreplot.game")).toBe(before);
     });
 
     it("does not leave anything in storage when there was nothing there", async () => {
@@ -1182,7 +1182,7 @@ describe("saving the game", () => {
       fireEvent.keyDown(window, { key: "4" });
       fireEvent.keyDown(window, { key: "Enter" });
 
-      expect(localStorage.getItem("scorekeeper.game")).toBeNull();
+      expect(localStorage.getItem("scoreplot.game")).toBeNull();
     });
   });
 });
@@ -1261,7 +1261,7 @@ describe("undoing", () => {
     it("is saved, and so is the undoing", async () => {
       const { user, container } = await threePlayers();
       const saved = () =>
-        JSON.parse(localStorage.getItem("scorekeeper.game")!).game.scorecards.length;
+        JSON.parse(localStorage.getItem("scoreplot.game")!).game.scorecards.length;
 
       await user.click(container.querySelectorAll(".delete-button")[2]!);
       expect(saved()).toBe(2);
@@ -1298,7 +1298,7 @@ describe("undoing", () => {
 
     it("brings back the game that was there before", async () => {
       const { user, container } = await afterPlayingRummy();
-      const savedName = () => JSON.parse(localStorage.getItem("scorekeeper.game")!).game.name;
+      const savedName = () => JSON.parse(localStorage.getItem("scoreplot.game")!).game.name;
 
       await user.click(screen.getByText("Start New Game"));
       expect(savedName()).toBe(DEFAULT_GAME_NAME);

@@ -107,21 +107,21 @@ describe("saving and loading", () => {
 
   it("copes with saved data that is not JSON", () => {
     const storage = fakeStorage();
-    storage.data.set("scorekeeper.game", "{oh no");
+    storage.data.set("scoreplot.game", "{oh no");
     expect(loadSavedGame(storage)).toBeNull();
   });
 
   it("copes with saved data in a different format", () => {
     const storage = fakeStorage();
-    storage.data.set("scorekeeper.game", JSON.stringify({ version: 99, game }));
+    storage.data.set("scoreplot.game", JSON.stringify({ version: 99, game }));
     expect(loadSavedGame(storage)).toBeNull();
-    storage.data.set("scorekeeper.game", JSON.stringify(game)); // No version at all
+    storage.data.set("scoreplot.game", JSON.stringify(game)); // No version at all
     expect(loadSavedGame(storage)).toBeNull();
   });
 
   it("copes with a saved game that is damaged", () => {
     const storage = fakeStorage();
-    storage.data.set("scorekeeper.game", JSON.stringify({ version: 1, game: { id: "g" } }));
+    storage.data.set("scoreplot.game", JSON.stringify({ version: 1, game: { id: "g" } }));
     expect(loadSavedGame(storage)).toBeNull();
   });
 

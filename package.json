@@ -1,5 +1,5 @@
 {
-  "name": "scorekeeper",
+  "name": "scoreplot",
   "private": true,
   "scripts": {
     "install:all": "npm --prefix web install",

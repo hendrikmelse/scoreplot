@@ -1,4 +1,4 @@
-# Scorekeeper
+# Scoreplot
 
 A web app for keeping score in games.
 

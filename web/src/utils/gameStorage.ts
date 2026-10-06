@@ -1,6 +1,6 @@
 import type { Game, Scorecard } from "@/Game";
 
-const STORAGE_KEY = "scorekeeper.game";
+const STORAGE_KEY = "scoreplot.game";
 const FORMAT_VERSION = 1;
 
 const isString = (value: unknown): value is string => typeof value === "string";
