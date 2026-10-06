@@ -33,6 +33,8 @@ export function PlayerListComponent({
   pinnedPlayerId,
   flashCounts,
   editing,
+  onStartEditing,
+  onFinishEditing,
 }: {
   round: number;
   selectedPlayerId: string;
@@ -48,12 +50,16 @@ export function PlayerListComponent({
    * up, however many times that has already happened.
    */
   flashCounts: Record<string, number>;
+  /** Whether the players are being edited: renamed, reordered, recolored, added and deleted */
   editing: boolean;
+  onStartEditing: () => void;
+  onFinishEditing: () => void;
 }) {
   const { game, updateGame } = useGame();
-  const { showToast } = useToast();
+  const { showToast, dismissAll } = useToast();
   // The player whose name field should be focused as soon as it appears (a just-added player)
   const focusPlayerId = useRef("");
+  const addButtonRef = useRef<HTMLButtonElement>(null);
   const [selectingColorId, setSelectingColorId] = useState("");
   const [colorPickerPosition, setColorPickerPosition] = useState<DOMRect | null>(null);
   const [dragId, setDragId] = useState("");
@@ -75,6 +81,33 @@ export function PlayerListComponent({
     if (editing || !showingRound) return;
     playerRefs.current.get(selectedPlayerId)?.scrollIntoView?.({ block: "nearest" });
   }, [selectedPlayerId, editing, showingRound]);
+
+  // Let the stylesheet know whether there is more of the list above or below what can be seen, so
+  // that the list can fade out at an edge that has more beyond it, rather than being cut off. This
+  // is kept in attributes on the list, which changes with every scroll but needs no rendering.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    function update() {
+      if (!list) return;
+      const hiddenAbove = list.scrollTop;
+      const hiddenBelow = list.scrollHeight - list.clientHeight - list.scrollTop;
+      list.dataset.moreAbove = String(hiddenAbove > 1);
+      list.dataset.moreBelow = String(hiddenBelow > 1);
+    }
+
+    update();
+    list.addEventListener("scroll", update, { passive: true });
+    // The size changes with the window, and when the add player button comes and goes
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+
+    return () => {
+      list.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [game.scorecards.length]); // And when there are more or fewer players to scroll through
 
   // The drag effect below calls whichever version of `dragTo` was made by the latest render
   const dragToRef = useRef<() => void>(() => {});
@@ -164,7 +197,15 @@ export function PlayerListComponent({
   function deletePlayer(card: Scorecard, index: number) {
     updateGame({ type: "delete_player", playerId: card.id });
     showToast({
-      message: `Deleted ${card.playerName.trim() || "player"}`,
+      message: (
+        <>
+          <span className="toast-dim">Deleted</span>{" "}
+          <span className="toast-subject">
+            <span className="toast-swatch" style={{ backgroundColor: card.color }} />
+            {card.playerName.trim() || "player"}
+          </span>
+        </>
+      ),
       actionLabel: "Undo",
       onAction: () => updateGame({ type: "restore_player", card, index }),
     });
@@ -254,10 +295,11 @@ export function PlayerListComponent({
           aria-label="Previous round"
           title="Previous round"
           {...hiddenFromEveryone(!showingRound || editing)}
+          disabled={showingRound && !editing && round === 0} // The first round, with nothing before it
           onClick={() => onPrevRound()}
         >
           <span className="material-symbols-outlined" aria-hidden="true">
-            arrow_left_alt
+            chevron_left
           </span>
         </button>
         <div className="round-label">{roundLabel(round, editing)}</div>
@@ -269,11 +311,11 @@ export function PlayerListComponent({
           onClick={() => onNextRound()}
         >
           <span className="material-symbols-outlined" aria-hidden="true">
-            arrow_right_alt
+            chevron_right
           </span>
         </button>
       </div>
-      <div className="player-list" ref={listRef}>
+      <div className={clsx("player-list", { editing })} ref={listRef}>
         {game.scorecards.map((card, index) => (
           <React.Fragment key={card.id}>
             <div
@@ -328,7 +370,12 @@ export function PlayerListComponent({
                     })
                   }
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key !== "Enter") return;
+                    // Done with this name, so on to the button for adding the next player, which
+                    // Enter will then press. The focus is moved a moment later, as this Enter is
+                    // still on its way, and would otherwise reach the button and press it already.
+                    e.currentTarget.blur();
+                    setTimeout(() => addButtonRef.current?.focus(), 0);
                   }}
                 />
               ) : (
@@ -356,18 +403,37 @@ export function PlayerListComponent({
           </React.Fragment>
         ))}
       </div>
-      <div className={clsx("add-player-row", { hidden: !editing })}>
-        <button
-          className="add-player-button"
-          aria-label="Add player"
-          title="Add player"
-          {...hiddenFromEveryone(!editing)}
-          onClick={addPlayer}
-        >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            add
-          </span>
-        </button>
+      <div className="list-footer">
+        {editing ? (
+          <>
+            <button className="add-player-button" ref={addButtonRef} onClick={addPlayer}>
+              <span className="material-symbols-outlined" aria-hidden="true">
+                add
+              </span>
+              Add player
+            </button>
+            <button
+              className="done-button"
+              onClick={() => {
+                // Done means the deletions were meant, so there is no more need to offer to undo them
+                dismissAll();
+                onFinishEditing();
+              }}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">
+                check
+              </span>
+              Done
+            </button>
+          </>
+        ) : (
+          <button className="edit-players-button" onClick={onStartEditing}>
+            <span className="material-symbols-outlined" aria-hidden="true">
+              edit
+            </span>
+            Edit players
+          </button>
+        )}
       </div>
     </>
   );

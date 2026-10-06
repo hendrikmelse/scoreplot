@@ -1,7 +1,7 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 export interface ToastOptions {
-  message: string;
+  message: ReactNode;
   /** The label of a button on the toast, like "Undo" */
   actionLabel?: string;
   /** Called when that button is pressed */
@@ -12,6 +12,8 @@ export interface ToastOptions {
 
 interface ToastContextValue {
   showToast: (options: ToastOptions) => void;
+  /** Sends every toast away, the way they go when their time is up */
+  dismissAll: () => void;
 }
 
 export const ToastContext = createContext<ToastContextValue | null>(null);

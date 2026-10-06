@@ -9,9 +9,43 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
   padding: 0 12px;
   pointer-events: none; // Only the toasts themselves can be pressed, not the space around them
+}
+
+// What makes room for a toast, which opens as the toast arrives and closes as it falls away, so that
+// the others slide to where they are going instead of jumping. The space between toasts is the
+// slot's own, so that it closes with it.
+.toast-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  margin-top: 10px;
+  animation: toast-slot-in 250ms ease-out;
+  transition:
+    grid-template-rows 250ms ease-in-out 100ms,
+    margin-top 250ms ease-in-out 100ms;
+
+  &.leaving {
+    z-index: 0; // Falls behind the toasts that are staying, not across them
+    grid-template-rows: 0fr;
+    margin-top: 0;
+  }
+
+  // The toast keeps its own size however far the slot closes, and is only moved out of its way
+  > .toast {
+    min-height: 0;
+    align-self: start;
+  }
+}
+
+@keyframes toast-slot-in {
+  from {
+    grid-template-rows: 0fr;
+    margin-top: 0;
+  }
 }
 
 .toast {
@@ -29,9 +63,30 @@
   font-size: 15pt;
   pointer-events: auto;
   animation: toast-in 160ms ease-out;
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease;
+
+  // Waiting out its last moments: mostly gone and a little lower, until it is pointed at again
+  &.faded {
+    opacity: 0.5;
+    transform: translateY(6px);
+  }
+
+  // Dropping off the bottom of the screen, no longer there to be pressed
+  &.leaving {
+    opacity: 0.5;
+    transform: translateY(140px);
+    transition:
+      opacity 350ms ease-in,
+      transform 350ms ease-in;
+    pointer-events: none;
+  }
 
   .toast-message {
     min-width: 0;
+    display: flex;
+    align-items: center; // The words, and the name with its dot, share one centre line
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -62,20 +117,66 @@
     }
   }
 
-  .toast-action {
-    padding: 0 16px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  // Quieter than the message's subject, so that it reads as the thing that was done
+  .toast-dim {
+    color: rgba($light-elements, 0.6);
   }
 
+  // Who it was done to, picked out by weight and a dot of their color
+  .toast-subject {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: 11px;
+    font-weight: bold;
+  }
+
+  .toast-swatch {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  // Looks pressable without being the loudest thing on the toast: a faint outlined chip
+  .toast-action {
+    min-height: 36px;
+    padding: 0 14px;
+    margin-left: 12px;
+    background-color: rgba(white, 0.07);
+    border: 1px solid rgba($light-elements, 0.3);
+    font-size: 13pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    // The same selectors as the generic button's, to win over its backgrounds
+    @media (hover: hover) {
+      &:hover {
+        background-color: rgba(white, 0.16);
+        border-color: rgba($light-elements, 0.5);
+      }
+    }
+
+    &:active {
+      background-color: rgba(white, 0.24);
+      border-color: rgba($light-elements, 0.6);
+    }
+  }
+
+  // A flex box, so that the icon is exactly in the middle of the button, rather than sitting where a
+  // line of text would
   .toast-dismiss {
     width: 44px;
     padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: rgba($light-elements, 0.6);
 
     span {
       font-size: 22px;
+      line-height: 1;
     }
   }
 }

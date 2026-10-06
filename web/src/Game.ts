@@ -18,10 +18,13 @@ export interface Scorecard {
   scores: number[];
 }
 
+/** What a game is called until it is given a name, which says how to give it one */
+export const DEFAULT_GAME_NAME = "New Game (click to edit)";
+
 export function createGame(): Game {
   return {
     id: crypto.randomUUID(),
-    name: "New Game",
+    name: DEFAULT_GAME_NAME,
     scorecards: [
       {
         id: crypto.randomUUID(),
@@ -37,7 +40,7 @@ export function createGame(): Game {
 export function isUntouched(game: Game): boolean {
   const [only, ...others] = game.scorecards;
   return (
-    game.name === "New Game" &&
+    game.name === DEFAULT_GAME_NAME &&
     only !== undefined &&
     others.length === 0 &&
     only.playerName === "Player 1" &&

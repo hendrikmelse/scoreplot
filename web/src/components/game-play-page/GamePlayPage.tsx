@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGame } from "@/GameContext";
+import { FittedText } from "@/components/FittedText";
 import { lastRound } from "@/utils/Scores";
 import { EnterScoresComponent } from "./enter-scores-component/EnterScoresComponent";
 import { PlayerListComponent } from "./player-list-component/PlayerListComponent";
@@ -33,11 +34,14 @@ export function GamePlayPage() {
   const [pinnedPlayerIdState, setPinnedPlayerId] = useState("");
   // How many times each player's row has been made to flash, which the row restarts its flash by
   const [flashCounts, setFlashCounts] = useState<Record<string, number>>({});
-  // A new game starts with its name selected, ready to be typed over (only the first time it shows)
+  // The game name is edited on its own, by pressing it, whether or not the players are being edited.
+  // A new game starts with its name being edited, ready to be typed over.
+  const [editingName, setEditingName] = useState(startInEditMode);
+  const nameBeforeEditing = useRef(game.name);
+  // Whether the name should be selected when its text box appears, which is only the first time
   const selectGameName = useRef(startInEditMode);
   const gameNameRef = useRef<HTMLDivElement>(null);
   const playerListRef = useRef<HTMLDivElement>(null);
-  const editButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fall back to the first player if the selected player doesn't exist (e.g. it was deleted)
   const firstPlayerId = game.scorecards[0]?.id ?? "";
@@ -61,7 +65,8 @@ export function GamePlayPage() {
     setSelectedPlayerId(firstPlayerId);
   }, [firstPlayerId]);
 
-  // Exit edit mode if user clicks anywhere other than the game name, the player list, or the edit button
+  // Exit edit mode if user clicks anywhere other than the game name or the player list (which has
+  // the buttons for starting and finishing editing in it)
   useEffect(() => {
     if (!editing) return;
 
@@ -69,17 +74,36 @@ export function GamePlayPage() {
       const target = event.target as Node;
       // Pressing a toast (like Undo, after deleting a player) is part of editing, not leaving it
       if (target instanceof Element && target.closest(".toasts")) return;
-      if (
-        !gameNameRef.current?.contains(target) &&
-        !playerListRef.current?.contains(target) &&
-        !editButtonRef.current?.contains(target)
-      ) {
+      if (!gameNameRef.current?.contains(target) && !playerListRef.current?.contains(target)) {
         exitEditMode();
       }
     }
 
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [editing, exitEditMode]);
+
+  // Pressing Enter while editing, with no name being edited, means the editing is done
+  useEffect(() => {
+    if (!editing) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter" || event.repeat) return; // Not the Enter of a key held down
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+
+      // Where the key was pressed, not where the focus is now: Enter in a name box takes the focus
+      // out of it, and that Enter has done its job by doing that. On a button, Enter presses it.
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, textarea, select, button")) return;
+
+      // The color picker has its own idea of what is going on
+      if (document.querySelector(".color-select-background")) return;
+
+      exitEditMode();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [editing, exitEditMode]);
 
   // Let go of a pinned player when pressing anywhere outside the player list, other than on a
@@ -134,6 +158,20 @@ export function GamePlayPage() {
     setCurrentContent(content);
   }
 
+  function startEditingName() {
+    nameBeforeEditing.current = game.name;
+    selectGameName.current = true;
+    setEditingName(true);
+  }
+
+  function finishEditingName() {
+    setEditingName(false);
+    // A game with no name at all would leave nothing to press to name it again
+    if (game.name.trim() === "") {
+      updateGame({ type: "update_name", newName: nameBeforeEditing.current });
+    }
+  }
+
   // Select the player `offset` places after the selected one, wrapping around the list
   function stepPlayer(offset: number) {
     const count = game.scorecards.length;
@@ -162,26 +200,19 @@ export function GamePlayPage() {
               title="Home"
               onClick={() => navigate("/")}
             >
+              <span className="material-symbols-outlined home-chevron" aria-hidden="true">
+                chevron_left
+              </span>
               <span className="material-symbols-outlined" aria-hidden="true">
                 home
               </span>
             </button>
-            <button
-              className="button-edit"
-              aria-label={editing ? "Done editing" : "Edit players"}
-              title={editing ? "Done editing" : "Edit players"}
-              ref={editButtonRef}
-              onClick={() => (editing ? exitEditMode() : setEditing(true))}
-            >
-              <span className="material-symbols-outlined" aria-hidden="true">
-                {editing ? "check" : "edit"}
-              </span>
-            </button>
           </div>
-          <div className="game-name-section" ref={gameNameRef}>
-            {editing ? (
+          <div className={clsx("game-name-section", { editing: editingName })} ref={gameNameRef}>
+            {editingName ? (
               <input
                 className="game-name-input"
+                aria-label="Game name"
                 ref={(el) => {
                   if (el && selectGameName.current) {
                     selectGameName.current = false;
@@ -191,12 +222,24 @@ export function GamePlayPage() {
                 }}
                 value={game.name}
                 onChange={(e) => updateGame({ type: "update_name", newName: e.target.value })}
+                onBlur={finishEditingName}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") {
+                    updateGame({ type: "update_name", newName: nameBeforeEditing.current });
+                    e.currentTarget.blur();
+                  }
                 }}
               />
             ) : (
-              <div className="game-name-label">{game.name}</div>
+              <button
+                className="game-name-label"
+                aria-label={`Rename game, now ${game.name}`}
+                title="Rename game"
+                onClick={startEditingName}
+              >
+                <FittedText className="game-name-text" text={game.name} />
+              </button>
             )}
           </div>
         </div>
@@ -212,6 +255,8 @@ export function GamePlayPage() {
               onPrevRound={prevRound}
               onNextRound={nextRound}
               editing={editing}
+              onStartEditing={() => setEditing(true)}
+              onFinishEditing={exitEditMode}
             />
           </div>
           <div className="buttons-section" role="tablist" aria-label="View">

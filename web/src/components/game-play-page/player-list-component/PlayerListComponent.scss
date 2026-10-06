@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "../../../Colors.scss" as *;
 @use "../../../Breakpoints.scss" as *;
 
@@ -6,7 +7,13 @@ $player-gap: 4px;
 // Empty space above the first player and below the last, inside the scrolling list. A player being
 // dragged can be pulled a little past either end, and the list would cut it off without this.
 $drag-room: 10px;
+// Space below the scrolling list, so that its scrollbar stops short of the rounded corners of the
+// panel it is in, rather than running into them
+$corner-room: 14px;
+// How far the list fades out at an edge that has more of it beyond, instead of cutting off
+$fade-size: 36px;
 $flash-duration: 800ms;
+$done-color: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
 $flash-color: rgba($light-elements, 0.35);
 
 @keyframes player-flash-a {
@@ -21,27 +28,66 @@ $flash-color: rgba($light-elements, 0.35);
   }
 }
 
-.round-buttons {
-  flex: none;
-  margin: 30px 40px (20px - $drag-room) 20px; // The room above the list makes up the rest of the gap
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+// The buttons that look like the keys of the keypad: rounded, a step lighter than the panel, and
+// pressing in when pressed
+@mixin secondary-button {
+  background-color: $gray-2;
+  border: 1px solid $gray-4;
+  border-radius: 12px;
+  color: $light-elements;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 60ms ease,
+    background-color 60ms ease,
+    border-color 60ms ease,
+    color 60ms ease;
 
-  button {
-    width: 80px;
-    height: 40px;
-    background-color: $gray-2;
-    border: 1px solid $gray-4;
-    border-radius: 10px;
-    cursor: pointer;
-
-    &:hover {
+  // Only for devices that can hover. On a touchscreen, :hover sticks after a tap.
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
       background-color: $gray-3;
     }
+  }
 
-    span {
-      color: $light-elements;
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+    background-color: $gray-4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $light-elements;
+    outline-offset: 2px;
+  }
+}
+
+.round-buttons {
+  flex: none;
+  // The room above the list makes up the rest of the gap below
+  margin: 26px 40px (20px - $drag-room) 20px;
+  display: flex;
+  justify-content: center; // The arrows stay near the heading, rather than at the far edges
+  align-items: center;
+  gap: 30px;
+
+  button {
+    @include secondary-button;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .material-symbols-outlined {
+      font-size: 32px;
+    }
+
+    // Nowhere to go, as when the first round is already showing
+    &:disabled {
+      opacity: 0.3;
+      cursor: default;
     }
 
     &.hidden {
@@ -51,37 +97,41 @@ $flash-color: rgba($light-elements, 0.35);
   }
 
   .round-label {
+    // As wide as the widest heading ("Total Scores"), so that the arrows stay where they are as
+    // the heading changes, instead of following its width
+    min-width: 136px;
     padding-bottom: 3px;
     color: $light-elements;
     font-size: 18pt;
     font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
   }
 
   // Stacked, the list is a panel of its own with space on both sides
   @include stacked {
-    margin: 14px 20px (6px - $drag-room);
+    margin: 10px 20px (6px - $drag-room);
   }
 
   // On a short screen, keep the space above the list small
   @include short {
-    margin-block: 12px (4px - $drag-room);
+    margin-block: 8px (4px - $drag-room);
   }
 
   // In a narrow panel the heading has to share the space with the buttons on both sides of it.
   // This comes last, so that it wins over the margins above.
   @container (max-width: 380px) {
     margin-inline: 16px;
-
-    button {
-      width: 64px;
-    }
   }
 }
 
 .player-list {
   position: relative;
-  flex: 1; // Takes the room between the round buttons and the add player button...
+  // Takes all the room there is between the round buttons and the buttons at the bottom of the
+  // panel, which keeps those at the bottom, and scrolls when there are more players than fit...
+  flex: 1 1 auto;
   min-height: 0;
+  margin-bottom: $corner-room;
   padding: $drag-room 0;
   scroll-padding: $drag-room 0; // So that scrolling a player into view leaves the room around them
   overflow-x: hidden;
@@ -92,6 +142,40 @@ $flash-color: rgba($light-elements, 0.35);
   display: flex;
   flex-direction: column;
   gap: $player-gap;
+
+  // Fade out at the top and the bottom, but only when there is more list that way. Without this the
+  // players at the edge are sliced through, which looks like a mistake. (The component keeps these
+  // attributes up to date, and the fade comes and goes with them.)
+  --fade-above: 0px;
+  --fade-below: 0px;
+
+  &[data-more-above="true"] {
+    --fade-above: #{$fade-size};
+  }
+
+  &[data-more-below="true"] {
+    --fade-below: #{$fade-size};
+  }
+
+  &[data-more-above="true"],
+  &[data-more-below="true"] {
+    $fade: linear-gradient(
+      to bottom,
+      transparent 0,
+      black var(--fade-above),
+      black calc(100% - var(--fade-below)),
+      transparent 100%
+    );
+    -webkit-mask-image: $fade;
+    mask-image: $fade;
+  }
+
+  // ...except while the players are being edited, when it is only as tall as they need, so that the
+  // add player button comes right after the last one. Once the players fill the room there is, it
+  // stops growing, and the buttons stay in view below it.
+  &.editing {
+    flex: 0 1 auto;
+  }
 
   .player {
     position: relative;
@@ -265,29 +349,83 @@ $flash-color: rgba($light-elements, 0.35);
   }
 }
 
-.add-player-row {
-  flex: none; // Always in view, below the scrolling list
-  margin: (12px - $drag-room) 0 16px; // The room below the list makes up the rest of the gap
+// The buttons below the players: for editing them, and for adding one (and finishing) while they are
+// being edited. It follows the last player, or stays in view below the scrolling list if there are
+// many.
+.list-footer {
+  flex: none;
+  // The room below the list, and the room the list leaves for the panel's corners, make up the gap
+  margin: (12px - $drag-room - $corner-room) 0 16px;
   display: flex;
   justify-content: center;
-  transition: opacity 60ms ease;
+  gap: 12px;
 
-  // Not taking up any room while it is not needed, which is most of the time
-  &.hidden {
-    display: none;
+  button {
+    @include secondary-button;
+    min-height: 44px;
+    padding: 0 20px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+
+    .material-symbols-outlined {
+      font-size: 22px;
+    }
   }
 
-  .add-player-button {
-    width: 80px;
-    height: 40px;
-    background-color: $gray-2;
-    border: 1px solid $gray-4;
-    border-radius: 8px;
-    color: $light-elements;
-    cursor: pointer;
+  // Not wanted often, so it is quiet until it is pointed at
+  .edit-players-button {
+    background-color: transparent;
+    border-color: $gray-3;
+    color: rgba($light-elements, 0.45);
 
-    &:hover {
-      background-color: $gray-3;
+    @media (hover: hover) {
+      &:hover:not(:active) {
+        background-color: $gray-2;
+        border-color: $gray-5;
+        color: $light-elements;
+      }
+    }
+  }
+
+  // An empty place for another player: a dashed outline that fills in when it is pointed at
+  .add-player-button {
+    background-color: transparent;
+    border: 2px dashed $gray-5;
+    color: rgba($light-elements, 0.75);
+
+    @media (hover: hover) {
+      &:hover {
+        border-color: $light-elements;
+        color: $light-elements;
+      }
+    }
+
+    &:active {
+      border-color: $light-elements;
+      color: $light-elements;
+    }
+  }
+
+  // The way out of editing, so it is as prominent as the Enter key of the keypad
+  .done-button {
+    background-color: $done-color;
+    border-color: $done-color;
+    color: $background;
+
+    // The same selectors as the shared button's hover and press, to win over its backgrounds
+    @media (hover: hover) {
+      &:hover:not(:disabled) {
+        background-color: $done-color;
+        filter: brightness(0.94);
+      }
+    }
+
+    &:active:not(:disabled) {
+      background-color: $done-color;
+      filter: brightness(0.85);
     }
   }
 }

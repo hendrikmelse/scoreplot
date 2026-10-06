@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
 import { defaultColors } from "@/config";
 import { createDemoGame } from "@/demoGame";
+import { DEFAULT_GAME_NAME } from "@/Game";
 import { lastRound, partialScores, totalScore, totalScoreRange } from "@/utils/Scores";
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -23,9 +24,9 @@ function shownScores(container: HTMLElement) {
 
 /** Add a second player ("Player 2") through edit mode, then leave edit mode */
 async function addSecondPlayer(user: User, container: HTMLElement) {
-  await user.click(container.querySelector(".button-edit")!);
+  await user.click(container.querySelector(".edit-players-button")!);
   await user.click(container.querySelector(".add-player-button")!);
-  await user.click(container.querySelector(".button-edit")!);
+  await user.click(container.querySelector(".done-button")!);
 }
 
 describe("demo game", () => {
@@ -142,7 +143,7 @@ describe("title page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
 
     expect(document.activeElement).not.toBe(container.querySelector(".game-name-input"));
   });
@@ -162,8 +163,22 @@ describe("title page", () => {
 
   it("has nothing to continue until a game has been started", () => {
     renderApp("/");
-    const button = screen.getByRole("button", { name: /Continue Game/ });
-    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByRole("button", { name: /Continue Game/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Start New Game" })).toBeTruthy();
+  });
+
+  it("always has Start New Game as the main button, with Continue Game as the other", () => {
+    const { unmount } = renderApp("/");
+    expect(screen.getByRole("button", { name: "Start New Game" }).classList).toContain("primary");
+    unmount();
+
+    const demo = renderApp("/?demo");
+    expect(screen.getByRole("button", { name: "Start New Game" }).classList).toContain("primary");
+    const continueButton = screen.getByRole("button", { name: /Continue Game/ });
+    expect(continueButton.classList).not.toContain("primary");
+    expect(continueButton.textContent).toContain("Friday Night Rummy");
+    expect(continueButton.textContent).toContain(`${createDemoGame().scorecards.length} players`);
+    expect(demo.container.querySelectorAll(".score-lines-backdrop polyline")).toHaveLength(5);
   });
 
   it("continues the current game outside of edit mode", async () => {
@@ -183,7 +198,7 @@ describe("title page", () => {
 describe("game play page", () => {
   it("renders the player and the game name", () => {
     renderApp();
-    expect(screen.getByText("New Game")).toBeTruthy();
+    expect(screen.getByText("New Game (click to edit)")).toBeTruthy();
     expect(screen.getByText("Player 1")).toBeTruthy();
   });
 
@@ -198,7 +213,7 @@ describe("game play page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
 
     const input = document.activeElement as HTMLInputElement;
@@ -206,32 +221,47 @@ describe("game play page", () => {
     expect(input.value).toBe("Player 2");
   });
 
-  it("shows names as plain text normally and as text boxes in edit mode", async () => {
+  it("shows player names as plain text normally and as text boxes in edit mode", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
     expect(container.querySelector(".player-name-input")).toBeNull();
-    expect(container.querySelector(".game-name-input")).toBeNull();
 
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     expect(container.querySelector<HTMLInputElement>(".player-name-input")!.value).toBe("Player 1");
-    expect(container.querySelector<HTMLInputElement>(".game-name-input")!.value).toBe("New Game");
-
-    await user.click(container.querySelector(".button-edit")!);
-    expect(container.querySelector(".player-name-input")).toBeNull();
+    // The game name is not part of edit mode
     expect(container.querySelector(".game-name-input")).toBeNull();
+
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    expect(container.querySelector(".player-name-input")).toBeNull();
+  });
+
+  it("renames the game by pressing its name, whether or not players are being edited", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp();
+
+    await user.click(container.querySelector(".game-name-label")!);
+    const input = container.querySelector<HTMLInputElement>(".game-name-input")!;
+    expect(input.value).toBe("New Game (click to edit)");
+    expect(container.querySelector(".player-name-input")).toBeNull(); // Not editing the players
+
+    await user.clear(input);
+    await user.type(input, "Rummy{Enter}");
+    expect(container.querySelector(".game-name-input")).toBeNull();
+    expect(screen.getByText("Rummy")).toBeTruthy();
   });
 
   it("renames the game and players from their text boxes", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".game-name-label")!);
     await user.clear(container.querySelector(".game-name-input")!);
-    await user.type(container.querySelector(".game-name-input")!, "Rummy");
+    await user.type(container.querySelector(".game-name-input")!, "Rummy{Enter}");
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.clear(container.querySelector(".player-name-input")!);
     await user.type(container.querySelector(".player-name-input")!, "Ada{Enter}");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button")!);
 
     expect(screen.getByText("Rummy")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
@@ -350,13 +380,16 @@ describe("game play page", () => {
       return scrollIntoView;
     }
 
-    it("keeps the add player button outside the scrolling list, so it's always reachable", () => {
+    it("keeps the add player button outside the scrolling list, so it's always reachable", async () => {
+      const user = userEvent.setup();
       const { container } = renderApp();
+      await user.click(container.querySelector(".edit-players-button")!);
       const list = container.querySelector(".player-list")!;
-      const addRow = container.querySelector(".add-player-row")!;
+      const footer = container.querySelector(".list-footer")!;
 
-      expect(list.contains(addRow)).toBe(false);
-      expect(addRow.parentElement).toBe(list.parentElement);
+      expect(footer.querySelector(".add-player-button")).not.toBeNull();
+      expect(list.contains(footer)).toBe(false);
+      expect(footer.parentElement).toBe(list.parentElement);
       expect(container.querySelector(".round-buttons")!.parentElement).toBe(list.parentElement);
     });
 
@@ -390,7 +423,7 @@ describe("game play page", () => {
     it("doesn't scroll around in edit mode", async () => {
       const user = userEvent.setup();
       const { container } = renderApp();
-      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".done-button, .edit-players-button")!);
       const scrollIntoView = spyOnScrollIntoView();
 
       fireEvent.keyDown(window, { key: "ArrowDown" });
@@ -428,7 +461,7 @@ describe("game play page", () => {
       function openLongList() {
         const view = renderApp("/?demo");
         fireEvent.click(screen.getByText("Continue Game"));
-        fireEvent.click(view.container.querySelector(".button-edit")!);
+        fireEvent.click(view.container.querySelector(".done-button, .edit-players-button")!);
 
         const list = view.container.querySelector<HTMLElement>(".player-list")!;
         list.getBoundingClientRect = () => rect(listTop, listBottom - listTop);
@@ -582,7 +615,7 @@ describe("game play page", () => {
       async function openPickerWithSwatchAt(y: number) {
         const user = userEvent.setup();
         const view = renderApp();
-        await user.click(view.container.querySelector(".button-edit")!);
+        await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
         const swatch = view.container.querySelector<HTMLElement>(".player-color")!;
         swatch.getBoundingClientRect = () =>
           ({
@@ -624,7 +657,7 @@ describe("game play page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.click(container.querySelector(".player-name-input")!);
     await user.keyboard("7{Enter}");
 
@@ -781,9 +814,9 @@ describe("game play page", () => {
     it("says so when there are no players", async () => {
       const user = userEvent.setup();
       const { container } = renderApp();
-      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".done-button, .edit-players-button")!);
       await user.click(container.querySelector(".delete-button")!);
-      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".done-button, .edit-players-button")!);
       await user.click(container.querySelectorAll(".buttons-section button")[2]!);
 
       expect(screen.getByText("No players")).toBeTruthy();
@@ -1039,11 +1072,11 @@ describe("game play page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     for (const button of Array.from(container.querySelectorAll(".delete-button"))) {
       await user.click(button);
     }
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.click(container.querySelectorAll(".buttons-section button")[1]!);
 
     expect(container.querySelector(".plot-scores-content")).not.toBeNull();
@@ -1074,10 +1107,10 @@ describe("saving the game", () => {
   it("brings the game back after a reload, and Continue Game picks it up", async () => {
     const user = userEvent.setup();
     const first = renderApp("/play/");
-    await user.click(first.container.querySelector(".button-edit")!);
+    await user.click(first.container.querySelector(".game-name-label")!);
     await user.clear(first.container.querySelector(".game-name-input")!);
     await user.type(first.container.querySelector(".game-name-input")!, "Rummy");
-    await user.click(first.container.querySelector(".button-edit")!);
+    await user.keyboard("{Enter}");
     fireEvent.keyDown(window, { key: "9" });
     fireEvent.keyDown(window, { key: "Enter" });
     first.unmount(); // Closing the page
@@ -1099,7 +1132,7 @@ describe("saving the game", () => {
     const second = renderApp("/");
     await user.click(screen.getByText("Start New Game"));
 
-    expect(savedGame().game.name).toBe("New Game");
+    expect(savedGame().game.name).toBe(DEFAULT_GAME_NAME);
     expect(savedGame().game.scorecards[0].scores).toEqual([0]);
     expect(second.container.querySelectorAll(".player")).toHaveLength(1);
   });
@@ -1107,7 +1140,7 @@ describe("saving the game", () => {
   it("starts fresh when the saved game is damaged", () => {
     localStorage.setItem("scorekeeper.game", "{not json");
     renderApp("/");
-    expect(continueButton().hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByRole("button", { name: /Continue Game/ })).toBeNull();
   });
 
   describe("the demo game", () => {
@@ -1133,7 +1166,7 @@ describe("saving the game", () => {
       await user.click(screen.getByText("Continue Game"));
       fireEvent.keyDown(window, { key: "4" });
       fireEvent.keyDown(window, { key: "Enter" });
-      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".done-button, .edit-players-button")!);
       await user.click(container.querySelector(".add-player-button")!);
 
       expect(localStorage.getItem("scorekeeper.game")).toBe(before);
@@ -1152,8 +1185,11 @@ describe("saving the game", () => {
 });
 
 describe("undoing", () => {
+  // The messages of the toasts that are staying, not the ones that are falling away
   const toastMessages = () =>
-    Array.from(document.querySelectorAll(".toast-message")).map((el) => el.textContent);
+    Array.from(document.querySelectorAll(".toast:not(.leaving) .toast-message")).map(
+      (el) => el.textContent,
+    );
   const names = (container: HTMLElement) =>
     Array.from(container.querySelectorAll<HTMLInputElement>(".player-name-input")).map(
       (input) => input.value,
@@ -1164,15 +1200,15 @@ describe("undoing", () => {
     async function threePlayers() {
       const user = userEvent.setup();
       const view = renderApp("/play/");
-      await user.click(view.container.querySelector(".button-edit")!);
+      await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
       await user.click(view.container.querySelector(".add-player-button")!);
       await user.click(view.container.querySelector(".add-player-button")!);
-      await user.click(view.container.querySelector(".button-edit")!);
+      await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
       for (const score of ["4", "5", "6"]) {
         fireEvent.keyDown(window, { key: score });
         fireEvent.keyDown(window, { key: "Enter" });
       }
-      await user.click(view.container.querySelector(".button-edit")!);
+      await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
       return { user, ...view };
     }
 
@@ -1198,7 +1234,7 @@ describe("undoing", () => {
       expect(
         container.querySelectorAll<HTMLElement>(".player-color")[1]!.style.backgroundColor,
       ).toBe(colorBefore);
-      await user.click(container.querySelector(".button-edit")!);
+      await user.click(container.querySelector(".done-button, .edit-players-button")!);
       expect(shownScores(container)).toEqual(["4", "5", "6"]);
       expect(toastMessages()).toEqual([]);
     });
@@ -1214,7 +1250,8 @@ describe("undoing", () => {
       expect(names(container)).toEqual(["Player 2", "Player 3"]);
       expect(toastMessages()).toEqual(["Deleted Player 1"]);
 
-      await user.click(screen.getByRole("button", { name: "Undo" })); // Undo Player 1
+      // The toast that was pressed is still falling away, so only the one that is staying
+      await user.click(document.querySelector(".toast:not(.leaving) .toast-action")!); // Undo Player 1
       expect(names(container)).toEqual(["Player 1", "Player 2", "Player 3"]);
     });
 
@@ -1235,10 +1272,10 @@ describe("undoing", () => {
     async function afterPlayingRummy() {
       const user = userEvent.setup();
       const first = renderApp("/play/");
-      await user.click(first.container.querySelector(".button-edit")!);
+      await user.click(first.container.querySelector(".game-name-label")!);
       await user.clear(first.container.querySelector(".game-name-input")!);
       await user.type(first.container.querySelector(".game-name-input")!, "Rummy");
-      await user.click(first.container.querySelector(".button-edit")!);
+      await user.keyboard("{Enter}");
       fireEvent.keyDown(window, { key: "8" });
       fireEvent.keyDown(window, { key: "Enter" });
       first.unmount();
@@ -1261,11 +1298,11 @@ describe("undoing", () => {
       const savedName = () => JSON.parse(localStorage.getItem("scorekeeper.game")!).game.name;
 
       await user.click(screen.getByText("Start New Game"));
-      expect(savedName()).toBe("New Game");
+      expect(savedName()).toBe(DEFAULT_GAME_NAME);
       await user.click(screen.getByRole("button", { name: "Undo" }));
 
       expect(savedName()).toBe("Rummy");
-      await user.click(container.querySelector(".button-edit")!); // Out of edit mode, as new games start in it
+      await user.click(container.querySelector(".done-button, .edit-players-button")!); // Out of edit mode, as new games start in it
       expect(shownScores(container)).toEqual(["8"]);
       expect(container.querySelector(".game-name-label")!.textContent).toBe("Rummy");
     });
@@ -1292,7 +1329,7 @@ describe("pressing a toast while editing", () => {
   it("does not leave edit mode, so that you can go on editing after an Undo", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
 
     await user.click(container.querySelectorAll(".delete-button")[1]!);
@@ -1306,7 +1343,7 @@ describe("pressing a toast while editing", () => {
   it("still leaves edit mode for a press anywhere else", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
     await user.click(container.querySelectorAll(".delete-button")[1]!);
 
@@ -1361,10 +1398,10 @@ describe("keypad caption", () => {
   it("follows a player being renamed", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.clear(container.querySelector(".player-name-input")!);
     await user.type(container.querySelector(".player-name-input")!, "Ada");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
 
     expect(caption(container)).toBe("Ada · Round 1");
   });
@@ -1372,9 +1409,9 @@ describe("keypad caption", () => {
   it("copes with a player whose name has been cleared", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.clear(container.querySelector(".player-name-input")!);
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
 
     expect(caption(container)).toBe("Player · Round 1");
   });
@@ -1382,7 +1419,7 @@ describe("keypad caption", () => {
   it("copes with there being no players", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".button-edit")!);
+    await user.click(container.querySelector(".done-button, .edit-players-button")!);
     await user.click(container.querySelector(".delete-button")!);
 
     expect(caption(container)).toBe("Round 1");
@@ -1461,7 +1498,7 @@ describe("labelled buttons", () => {
       renderApp("/play/");
 
       await user.click(screen.getByRole("button", { name: "Edit players" }));
-      expect(screen.getByRole("button", { name: "Done editing" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Done" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Edit players" })).toBeNull();
     });
 
@@ -1513,7 +1550,7 @@ describe("focus after pressing a button", () => {
     // Looked up one at a time, as some of them only exist once an earlier one has been pressed
     const buttons = [
       () => screen.getByRole("button", { name: "Edit players" }),
-      () => screen.getByRole("button", { name: "Done editing" }),
+      () => screen.getByRole("button", { name: "Done" }),
       () => screen.getByRole("button", { name: "Next round" }),
       () => container.querySelector<HTMLElement>(".key-5")!,
     ];
@@ -1795,7 +1832,7 @@ describe("letting go of a pinned player by pressing elsewhere", () => {
   it("happens when something else that is not a button is pressed", async () => {
     const { user, container, pinned } = await withSecondPlayerPinned();
 
-    await user.click(container.querySelector(".game-name-label")!);
+    await user.click(container.querySelector(".top-left-section")!);
 
     expect(pinned()).toBe(false);
   });
@@ -2022,7 +2059,7 @@ describe("flashing the row of a player whose score was updated", () => {
       const { container } = renderApp("/play/");
       await user.click(screen.getByRole("button", { name: "Edit players" }));
       await user.click(container.querySelector(".delete-button")!);
-      await user.click(screen.getByRole("button", { name: "Done editing" }));
+      await user.click(screen.getByRole("button", { name: "Done" }));
 
       expect(() => enterScore("5")).not.toThrow();
       expect(container.querySelectorAll(".player")).toHaveLength(0);

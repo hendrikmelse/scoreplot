@@ -1,22 +1,184 @@
+@use "sass:color";
+@use "../../Colors.scss" as *;
+
+$accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
+
 .title-page-background {
-  display: grid;
-  grid-template-rows: 1fr auto 2fr;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  // The space below is the bigger, as the card is happier a little above the middle
+  padding: 24px 16px calc(24px + 6vh);
+  overflow-y: auto; // For a screen too short to fit it all
 }
 
+.score-lines-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  polyline {
+    fill: none;
+    stroke-width: 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke; // The same thickness however the screen stretches it
+    opacity: 0.9;
+  }
+}
+
+// Everything on the page is in this card, over the lines
 .title-page-content {
-  grid-row: 2;
-  grid-column: 2;
+  position: relative;
+  // Margins rather than centering, so that it can't be pushed off the top of a short screen
+  width: min(420px, 100%);
+  margin: auto;
+  padding: 36px 28px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 36px;
+  background-color: $gray-1;
+  border: 1px solid $gray-4;
+  border-radius: 28px;
+  // Big and dark, so that the lines fade out as they near the card instead of running right up to it
+  box-shadow:
+    0 24px 80px rgba(black, 0.95),
+    0 0 200px 60px rgba(black, 0.9);
+}
+
+.title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+
+  .title-swatches {
+    display: flex;
+    gap: 6px;
+
+    span {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+    }
+  }
 
   .title {
-    color: white;
-    font-size: min(48pt, 11vw); // Shrinks to fit on narrow screens
-    text-align: center;
-    letter-spacing: 0.03em;
     margin: 0;
+    color: $light-elements;
+    font-size: min(40pt, 11vw); // Shrinks to fit on narrow screens
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    // The letter spacing is also added after the last letter, which would push it off-center
+    margin-right: -0.06em;
+    text-align: center;
+  }
+}
+
+.title-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+// Big enough to hit without trying, and the same rounded keys as the rest of the app
+.title-button {
+  width: 100%;
+  min-height: 64px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background-color: $gray-2;
+  border: 1px solid $gray-4;
+  border-radius: 18px;
+  color: $light-elements;
+  cursor: pointer;
+  font-size: 16pt;
+  font-weight: 600;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 60ms ease,
+    background-color 60ms ease,
+    filter 60ms ease;
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: $gray-3;
+    }
+  }
+
+  &:active {
+    transform: scale(0.97);
+    background-color: $gray-4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $light-elements;
+    outline-offset: 3px;
+  }
+
+  // The one most likely wanted: solid, where the other is an outline of a button
+  &.primary {
+    background-color: $accent;
+    border-color: $accent;
+    color: $background;
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: $accent;
+        filter: brightness(0.94);
+      }
+    }
+
+    &:active {
+      background-color: $accent;
+      filter: brightness(0.85);
+    }
+  }
+
+  .continue-text {
+    min-width: 0;
+    flex: 1;
+    padding: 14px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .continue-game-text {
+    font-size: 11pt;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    opacity: 0.6;
+    text-transform: uppercase;
+  }
+
+  .continue-game-name {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 17pt;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .continue-game-details {
+    font-size: 11pt;
+    font-weight: 500;
+    opacity: 0.6;
+  }
+
+  .material-symbols-outlined {
+    flex: none;
+    margin-right: -6px;
+    font-size: 32px;
   }
 }

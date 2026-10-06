@@ -41,7 +41,6 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
     border: 1px solid $gray-4;
     border-radius: clamp(14px, 2.6vmin, 24px);
     color: $light-elements;
-    font-family: monospace;
     font-size: clamp(30px, 6.4vmin, 48px);
     font-weight: bold;
     white-space: nowrap;
@@ -52,12 +51,6 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
       min-width: 0;
       overflow: hidden;
       color: rgba($light-elements, 0.55);
-      font-family:
-        system-ui,
-        -apple-system,
-        "Segoe UI",
-        Roboto,
-        sans-serif; // Not the number's font
       font-size: clamp(14px, 2.6vmin, 22px);
       font-weight: 600;
       text-overflow: ellipsis;
@@ -84,7 +77,6 @@ $enter-key-color: color.mix($light-elements, $gray-3, 75%);
     border-radius: clamp(12px, 2.2vmin, 20px);
     color: $light-elements;
     cursor: pointer;
-    font-family: monospace;
     font-size: clamp(24px, 5vmin, 42px);
     font-weight: bold;
     transition:

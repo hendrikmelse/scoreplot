@@ -1,8 +1,15 @@
 import "./TitlePage.scss";
 import { useNavigate } from "react-router-dom";
+import { defaultColors } from "@/config";
 import { isUntouched } from "@/Game";
 import { useGame } from "@/GameContext";
 import { useToast } from "@/ToastContext";
+import { lastRound } from "@/utils/Scores";
+import { ScoreLinesBackdrop } from "./ScoreLinesBackdrop";
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
 
 export function TitlePage() {
   const navigate = useNavigate();
@@ -26,19 +33,37 @@ export function TitlePage() {
 
   return (
     <div className="background title-page-background">
-      <div className="main-card title-page-content">
-        <h1 className="title">SCOREKEEPER</h1>
-        <button className="button button-large" onClick={startNewGame}>
-          Start New Game
-        </button>
-        <button
-          className="button button-large"
-          disabled={!hasGame}
-          onClick={() => navigate("/play")}
-        >
-          <div className="continue-game-text">Continue Game</div>
-          {hasGame && <div className="continue-game-name">{game.name}</div>}
-        </button>
+      <ScoreLinesBackdrop />
+      <div className="title-page-content">
+        <header className="title-block">
+          {/* The colors that players are given, as in the player list */}
+          <div className="title-swatches" aria-hidden="true">
+            {defaultColors.map((color) => (
+              <span key={color} style={{ backgroundColor: color }} />
+            ))}
+          </div>
+          <h1 className="title">Scoreplot</h1>
+        </header>
+        <div className="title-actions">
+          <button className="title-button primary" onClick={startNewGame}>
+            Start New Game
+          </button>
+          {/* There is nothing to continue until there has been a game */}
+          {hasGame && (
+            <button className="title-button" onClick={() => navigate("/play")}>
+              <span className="continue-text">
+                <span className="continue-game-text">Continue Game</span>
+                <span className="continue-game-name">{game.name}</span>
+                <span className="continue-game-details">
+                  {plural(game.scorecards.length, "player")} · {plural(lastRound(game), "round")}
+                </span>
+              </span>
+              <span className="material-symbols-outlined" aria-hidden="true">
+                chevron_right
+              </span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

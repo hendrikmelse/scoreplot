@@ -93,6 +93,9 @@ export function EnterScoresComponent({
       const focused = document.activeElement;
       if ((e.key === "Enter" || e.key === " ") && focused instanceof HTMLButtonElement) return;
 
+      // While the players are being edited, Enter finishes that, rather than entering a score
+      if (editing && e.key === "Enter") return;
+
       if (!editing) (focused as HTMLElement | null)?.blur();
       pressKey(e.key);
     }

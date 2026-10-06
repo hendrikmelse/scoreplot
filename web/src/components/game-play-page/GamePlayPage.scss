@@ -4,6 +4,9 @@
 // The player list column. It can shrink a bit on smaller screens, to leave more room for the plot.
 $left-width: clamp(420px, 38vw, 500px);
 
+// How much the tabs curve where they meet the main panel
+$tab-flare: 8px;
+
 .game-play-background {
   display: flex;
   align-items: center;
@@ -25,20 +28,23 @@ $left-width: clamp(420px, 38vw, 500px);
     display: flex;
     gap: 10px;
 
+    // Just the Home button, as tall as the header, which is as tall as the outline of the game name
     .top-buttons-section {
       width: 80px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
 
       button {
         flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start; // Over towards the edge of the screen, which is where back is
         background-color: $gray-1;
         border: 1px solid $gray-4;
         border-left: 0;
         border-top-right-radius: 16px;
         border-bottom-right-radius: 16px;
-        color: $light-elements;
+        color: rgba($light-elements, 0.55); // Both icons, which are quiet, as it is not used much
         cursor: pointer;
 
         &:hover {
@@ -46,7 +52,15 @@ $left-width: clamp(420px, 38vw, 500px);
         }
 
         span {
-          font-size: 24px;
+          font-size: 34px;
+        }
+
+        // An arrow, to say that this goes back. The icon has a lot of empty space on each side of
+        // the arrow itself, which the negative margins take back, to bring it in towards the edge of
+        // the screen and up against the house.
+        .home-chevron {
+          margin-left: -6px;
+          margin-right: -9px;
         }
       }
     }
@@ -63,15 +77,53 @@ $left-width: clamp(420px, 38vw, 500px);
       align-items: center;
       justify-content: center;
 
+      // While the name is being edited, the panel stays the shade that it was when it was pointed
+      // at to start, so that there is no change of color as the text box replaces the name
+      &.editing {
+        background-color: $gray-2;
+      }
+
+      // The name, which is pressed to rename the game
       .game-name-label {
+        position: relative;
+        width: 100%;
+        height: 100%;
         min-width: 0;
-        overflow: hidden;
-        padding: 0 12px 3px;
+        padding: 0 16px 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: 0;
+        border-radius: 15px;
         color: $light-elements;
+        cursor: pointer;
+        font-family: inherit;
         font-size: 22pt;
         font-weight: bold;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition: background-color 60ms ease;
+
+        .game-name-text {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        @media (hover: hover) {
+          &:hover {
+            background-color: $gray-2;
+          }
+        }
+
+        // No lighter shade for pressing: the name turns into a text box as soon as it is pressed,
+        // and it has to carry on looking the same through that, or it flickers
+        &:focus-visible {
+          outline: 2px solid $light-elements;
+          outline-offset: -4px;
+        }
       }
 
       .game-name-input {
@@ -122,16 +174,16 @@ $left-width: clamp(420px, 38vw, 500px);
       height: 90%;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px; // Close enough that the curves of one tab overlap those of the next
 
       button {
+        position: relative;
         height: 80px;
         width: 80px;
         background-color: $gray-1;
         border: 1px solid $gray-4;
-        border-right: none;
-        border-top-left-radius: 16px;
-        border-bottom-left-radius: 16px;
+        border-right: none; // The border of the panel does for that
+        border-radius: 16px 0 0 16px;
         align-self: flex-end;
         color: $light-elements;
         cursor: pointer;
@@ -153,10 +205,46 @@ $left-width: clamp(420px, 38vw, 500px);
           letter-spacing: 0.03em;
         }
 
+        // The selected tab lies over the panel's border, which opens it up to the panel, and its top
+        // and bottom edges curve outwards into the panel's edge, rather than ending in a sharp
+        // corner. The other tabs have square corners where they meet the panel's line. Each curve is
+        // a small square, filled where the corner is, and drawn with the same line as the outline.
         &.selected {
           width: 73px;
           margin-right: -1px;
           z-index: 2;
+
+          &::before,
+          &::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            width: $tab-flare + 1px; // To reach over the panel's border, which is what opens it up
+            height: $tab-flare + 1px;
+            pointer-events: none;
+          }
+
+          &::before {
+            bottom: 100%;
+            background: radial-gradient(
+              circle at 0 0,
+              transparent $tab-flare,
+              $gray-4 $tab-flare,
+              $gray-4 $tab-flare + 1px,
+              $gray-1 $tab-flare + 1px
+            );
+          }
+
+          &::after {
+            top: 100%;
+            background: radial-gradient(
+              circle at 0 100%,
+              transparent $tab-flare,
+              $gray-4 $tab-flare,
+              $gray-4 $tab-flare + 1px,
+              $gray-1 $tab-flare + 1px
+            );
+          }
 
           .tab-label {
             color: $light-elements;
@@ -226,12 +314,15 @@ $left-width: clamp(420px, 38vw, 500px);
 
       // The name can take two lines, so that more of a long one fits on a narrow screen
       .game-name-label {
+        padding: 0 12px;
+      }
+
+      .game-name-label .game-name-text {
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         font-size: 16pt;
         line-height: 1.15;
-        padding-bottom: 0;
         text-align: center;
         white-space: normal;
       }
@@ -243,11 +334,13 @@ $left-width: clamp(420px, 38vw, 500px);
       grid-row: 2;
       height: auto;
       flex-direction: row;
+      gap: 10px;
 
       button {
         flex: 1;
         width: auto;
         height: 56px;
+        margin-right: 0;
         border: 1px solid $gray-4;
         border-radius: 16px;
         transition: none;
@@ -262,12 +355,24 @@ $left-width: clamp(420px, 38vw, 500px);
           font-size: 15px;
         }
 
+        &::before,
+        &::after {
+          display: none; // Nothing to curve out into
+        }
+
         // There is nothing to join up with, so the selected tab is just a brighter one
         &.selected {
           width: auto;
           margin-right: 0;
           background-color: $gray-3;
-          border-color: $gray-5;
+          // All the way round, not open on the right as it is beside the panel
+          border: 1px solid $gray-5;
+          border-radius: 16px;
+
+          &::before,
+          &::after {
+            display: none;
+          }
         }
       }
     }
@@ -296,21 +401,6 @@ $left-width: clamp(420px, 38vw, 500px);
 
   .left-section .top-left-section {
     height: 76px;
-
-    .top-buttons-section {
-      width: 124px;
-      flex-direction: row;
-      gap: 8px;
-
-      button {
-        border-radius: 0 16px 16px 0;
-
-        &:last-child {
-          border-radius: 16px;
-          border-left: 1px solid $gray-4;
-        }
-      }
-    }
 
     .game-name-section {
       .game-name-label,

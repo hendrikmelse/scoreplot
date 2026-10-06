@@ -1,7 +1,7 @@
 @use "../../../Colors.scss" as *;
 
 // How visible the other lines are while one is picked out. 1 would leave them as they were.
-$dimmed-opacity: 0.5;
+$dimmed-opacity: 0.6;
 
 .plot-scores-content {
   height: 100%;
