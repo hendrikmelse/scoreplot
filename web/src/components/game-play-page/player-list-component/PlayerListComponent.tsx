@@ -6,6 +6,7 @@ import { useToast } from "@/ToastContext";
 import { nextPlayerColor, type Scorecard } from "@/Game";
 import { totalScore } from "@/utils/Scores";
 import { autoScrollSpeed } from "@/utils/autoScroll";
+import { newId } from "@/utils/newId";
 import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
 
 /** The round passed in when the player list should show total scores instead of a round */
@@ -212,7 +213,7 @@ export function PlayerListComponent({
   }
 
   function addPlayer() {
-    const newPlayerId = crypto.randomUUID();
+    const newPlayerId = newId();
     updateGame({
       type: "add_player",
       newPlayerId,

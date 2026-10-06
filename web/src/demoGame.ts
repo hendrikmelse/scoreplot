@@ -1,6 +1,7 @@
 import type { Game } from "@/Game";
 import { defaultColors } from "@/config";
 import { generatedColor } from "@/utils/color";
+import { newId } from "@/utils/newId";
 
 const ROUNDS = 24;
 const SKIPPED_ROUND_CHANCE = 0.1; // Rounds where a player scores nothing at all
@@ -54,7 +55,7 @@ export function createDemoGame(): Game {
   const random = mulberry32(SEED);
 
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     name: "Friday Night Rummy",
     scorecards: players.map(({ name, typical, spread }, i) => {
       const scores = [0]; // Nobody starts with any points
@@ -63,7 +64,7 @@ export function createDemoGame(): Game {
         scores.push(skipped ? 0 : Math.round(typical + spread * gaussian(random)));
       }
       return {
-        id: crypto.randomUUID(),
+        id: newId(),
         playerName: name,
         color: defaultColors[i] ?? generatedColor(i),
         scores,

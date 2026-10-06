@@ -1,6 +1,7 @@
 import { produce } from "immer";
 import { defaultColors } from "@/config";
 import { generatedColor } from "@/utils/color";
+import { newId } from "@/utils/newId";
 
 // ========== Game interfaces ==========
 
@@ -23,11 +24,11 @@ export const DEFAULT_GAME_NAME = "New Game (click to edit)";
 
 export function createGame(): Game {
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     name: DEFAULT_GAME_NAME,
     scorecards: [
       {
-        id: crypto.randomUUID(),
+        id: newId(),
         playerName: "Player 1",
         color: defaultColors[0]!,
         scores: [0],
