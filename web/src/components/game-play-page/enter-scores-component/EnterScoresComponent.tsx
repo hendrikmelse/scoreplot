@@ -64,16 +64,16 @@ export function EnterScoresComponent({
   const pressedAt = useRef(0);
   const releaseTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const pressDown = (key: string) => {
+  const pressDown = (key: string, time: number) => {
     clearTimeout(releaseTimer.current);
-    pressedAt.current = performance.now();
+    pressedAt.current = time;
     setPressedKey(key);
   };
 
   // Lets go, but not before the press has been there long enough to be seen
-  const release = () => {
+  const release = (time: number) => {
     clearTimeout(releaseTimer.current);
-    const remaining = MIN_PRESS_MS - (performance.now() - pressedAt.current);
+    const remaining = MIN_PRESS_MS - (time - pressedAt.current);
     if (remaining <= 0) setPressedKey(null);
     else releaseTimer.current = setTimeout(() => setPressedKey(null), remaining);
   };
@@ -153,15 +153,15 @@ export function EnterScoresComponent({
             pressKey(key);
           }}
           onPointerDown={(e) => {
-            pressDown(key);
+            pressDown(key, e.timeStamp);
             countedOnTouch.current = e.pointerType !== "mouse";
             if (countedOnTouch.current) pressKey(key);
           }}
-          onPointerUp={release}
-          onPointerCancel={release}
+          onPointerUp={(e) => release(e.timeStamp)}
+          onPointerCancel={(e) => release(e.timeStamp)}
           onPointerEnter={(e) => e.pointerType === "mouse" && setHoveredKey(key)}
           onPointerLeave={(e) => {
-            release();
+            release(e.timeStamp);
             if (e.pointerType === "mouse") setHoveredKey(null);
           }}
         >
