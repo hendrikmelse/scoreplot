@@ -361,17 +361,31 @@ html[data-transition="to-game"]::view-transition-group(root) {
     flex-direction: column;
     gap: 10px;
 
+    // Each option is a card, with the link filling it. A QR code, if shown, opens up under the link.
+    li {
+      overflow: hidden;
+      background-color: $gray-2;
+      border: 1px solid $gray-4;
+      border-radius: 16px;
+    }
+
+    .support-option-row {
+      position: relative;
+    }
+
     a {
       display: flex;
       flex-direction: column;
       gap: 2px;
       padding: 14px 18px;
-      background-color: $gray-2;
-      border: 1px solid $gray-4;
-      border-radius: 16px;
       color: $light-elements;
       text-decoration: none;
       touch-action: manipulation;
+
+      // Leaves room for the round button over the right end
+      &.has-qr {
+        padding-right: 74px;
+      }
 
       @media (hover: hover) {
         &:hover {
@@ -385,7 +399,69 @@ html[data-transition="to-game"]::view-transition-group(root) {
 
       &:focus-visible {
         outline: 2px solid $light-elements;
+        outline-offset: -2px;
+        border-radius: 15px;
+      }
+    }
+
+    // A round button on the right of the card, showing a QR code
+    .support-qr-toggle {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      width: 44px;
+      height: 44px;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: $gray-3;
+      border: 1px solid $gray-5;
+      border-radius: 50%;
+      color: $light-elements;
+      cursor: pointer;
+      touch-action: manipulation;
+
+      @media (hover: hover) {
+        &:hover {
+          background-color: $gray-4;
+        }
+      }
+
+      // While the code is showing
+      &[aria-expanded="true"] {
+        background-color: $light-elements;
+        border-color: $light-elements;
+        color: $background;
+      }
+
+      &:focus-visible {
+        outline: 2px solid $light-elements;
         outline-offset: 2px;
+      }
+    }
+
+    .support-qr {
+      margin: 0;
+      padding: 4px 18px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+
+      // White all round, which a QR code needs to be read, whatever is around it
+      img {
+        width: min(220px, 100%);
+        aspect-ratio: 1;
+        padding: 10px;
+        background-color: white;
+        border-radius: 12px;
+        image-rendering: pixelated;
+      }
+
+      figcaption {
+        color: rgba($light-elements, 0.6);
+        font-size: 10.5pt;
       }
     }
 

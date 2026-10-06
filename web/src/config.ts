@@ -1,3 +1,6 @@
+import paypalQrCode from "@/assets/paypal-qr.svg";
+import venmoQrCode from "@/assets/venmo-qr.svg";
+
 export const defaultColors = [
   "#e6194b",
   "#f58231",
@@ -14,6 +17,8 @@ export interface SupportOption {
   /** One line about it, under the name */
   description: string;
   url: string;
+  /** A picture of a QR code for the link, for someone on a computer to scan with their phone */
+  qrCode?: string;
 }
 
 /**
@@ -22,23 +27,15 @@ export interface SupportOption {
  */
 export const supportOptions: SupportOption[] = [
   {
-    name: "GitHub Sponsors",
-    description: "Monthly or one-time, through GitHub",
-    url: "https://github.com/sponsors/hendrikmelse",
-  },
-  {
-    name: "Ko-fi",
-    description: "A one-off tip",
-    url: "https://ko-fi.com/hendrikmelse",
-  },
-  {
-    name: "Buy Me a Coffee",
-    description: "A coffee's worth",
-    url: "https://buymeacoffee.com/hendrikmelse",
-  },
-  {
     name: "PayPal",
     description: "Send any amount",
     url: "https://paypal.me/HendrikMelse",
+    qrCode: paypalQrCode,
+  },
+  {
+    name: "Venmo",
+    description: "Send a tip (US only)",
+    url: "https://venmo.com/u/HendrikMelse",
+    qrCode: venmoQrCode,
   },
 ];
