@@ -20,11 +20,22 @@ $negative: #f08a8a;
     text-align: center;
   }
 
+  // Says the same sort of thing, in the same way, as the plot does when it has nothing to show
   &.score-table-empty {
     align-items: center;
     justify-content: center;
+    gap: 6px;
     color: $muted;
-    font-size: 18pt;
+    text-align: center;
+
+    .score-table-empty-title {
+      font-size: 18pt;
+      font-weight: bold;
+    }
+
+    .score-table-empty-hint {
+      font-size: 12pt;
+    }
   }
 
   // The table scrolls inside this box, with the header, round labels and totals staying in view

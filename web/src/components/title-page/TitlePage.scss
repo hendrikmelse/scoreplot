@@ -16,6 +16,7 @@ $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
   width: 100%;
   height: 100%;
   pointer-events: none;
+  view-transition-name: title-lines; // So that they can fade on their own as the page changes, below
 
   polyline {
     fill: none;
@@ -30,6 +31,7 @@ $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
 // Everything on the page is in this card, over the lines
 .title-page-content {
   position: relative;
+  view-transition-name: title-card; // So that it moves on its own as the page changes, see below
   // Margins rather than centering, so that it can't be pushed off the top of a short screen
   width: min(420px, 100%);
   margin: auto;
@@ -180,5 +182,62 @@ $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
     flex: none;
     margin-right: -6px;
     font-size: 32px;
+  }
+}
+
+// Changing between this page and the game page: the pages fade into each other, while the card slides
+// away off the left of the screen, or in from it. The card is only on one of the two pages, so it
+// only ever has one of these.
+// Going to the game is quicker than coming back to the title, as it is the one that is in the way
+$to-title-time: 450ms;
+$to-game-time: 250ms;
+// The lines go sooner than the game page arrives, so that they are not seen through it
+$lines-out-time: 120ms;
+
+::view-transition-group(root) {
+  animation-duration: $to-title-time;
+}
+
+html[data-transition="to-game"]::view-transition-group(root) {
+  animation-duration: $to-game-time;
+}
+
+::view-transition-old(title-lines) {
+  animation: fade-out $lines-out-time ease-out both;
+}
+
+::view-transition-new(title-lines) {
+  animation: fade-in $to-title-time ease both;
+}
+
+::view-transition-old(title-card) {
+  animation: title-card-out $to-game-time cubic-bezier(0.6, 0, 0.9, 0.5) both;
+}
+
+::view-transition-new(title-card) {
+  animation: title-card-in $to-title-time cubic-bezier(0.1, 0.5, 0.4, 1) both;
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes title-card-out {
+  to {
+    transform: translateX(calc(-100vw - 100%));
+  }
+}
+
+@keyframes title-card-in {
+  from {
+    transform: translateX(calc(-100vw - 100%));
   }
 }

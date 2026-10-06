@@ -55,7 +55,14 @@ export function ScoreTableComponent({
   }
 
   if (game.scorecards.length === 0) {
-    return <div className="score-table-content score-table-empty">No players</div>;
+    return (
+      <div className="score-table-content score-table-empty">
+        <div className="score-table-empty-title">No players yet</div>
+        <div className="score-table-empty-hint">
+          Add some from the player list, and their scores will show up here
+        </div>
+      </div>
+    );
   }
 
   return (

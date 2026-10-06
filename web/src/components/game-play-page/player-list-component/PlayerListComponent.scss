@@ -125,6 +125,24 @@ $flash-color: rgba($light-elements, 0.35);
   }
 }
 
+// What the list says when there is nobody in it to show
+.player-list-empty {
+  margin: auto 0; // In the middle of whatever room there is
+  padding: 0 24px;
+  color: rgba($light-elements, 0.55);
+  text-align: center;
+
+  .player-list-empty-title {
+    font-size: 16pt;
+    font-weight: bold;
+  }
+
+  .player-list-empty-hint {
+    margin-top: 6px;
+    font-size: 11pt;
+  }
+}
+
 .player-list {
   position: relative;
   // Takes all the room there is between the round buttons and the buttons at the bottom of the

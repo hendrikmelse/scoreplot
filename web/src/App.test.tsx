@@ -819,7 +819,10 @@ describe("game play page", () => {
       await user.click(container.querySelector(".done-button, .edit-players-button")!);
       await user.click(container.querySelectorAll(".buttons-section button")[2]!);
 
-      expect(screen.getByText("No players")).toBeTruthy();
+      // The player list says something of its own, so look at the table's
+      const empty = container.querySelector(".score-table-empty")!;
+      expect(empty.textContent).toContain("No players yet");
+      expect(empty.textContent).toContain("Add some from the player list");
     });
   });
 
@@ -1414,6 +1417,23 @@ describe("keypad caption", () => {
     await user.click(container.querySelector(".done-button, .edit-players-button")!);
 
     expect(caption(container)).toBe("Player · Round 1");
+  });
+
+  it("says what to do when the player list is empty, in and out of edit mode", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+    await user.click(container.querySelector(".delete-button")!);
+
+    expect(screen.getByText("No players yet")).toBeTruthy();
+    expect(screen.getByText("Press Add player to add one")).toBeTruthy();
+
+    await user.click(container.querySelector(".done-button")!);
+    expect(screen.getByText("Press Edit players to add some")).toBeTruthy();
+
+    await user.click(container.querySelector(".edit-players-button")!);
+    await user.click(container.querySelector(".add-player-button")!);
+    expect(container.querySelector(".player-list-empty")).toBeNull();
   });
 
   it("copes with there being no players", async () => {

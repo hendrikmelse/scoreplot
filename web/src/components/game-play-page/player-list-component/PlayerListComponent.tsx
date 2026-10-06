@@ -316,6 +316,14 @@ export function PlayerListComponent({
         </button>
       </div>
       <div className={clsx("player-list", { editing })} ref={listRef}>
+        {game.scorecards.length === 0 && (
+          <div className="player-list-empty">
+            <div className="player-list-empty-title">No players yet</div>
+            <div className="player-list-empty-hint">
+              {editing ? "Press Add player to add one" : "Press Edit players to add some"}
+            </div>
+          </div>
+        )}
         {game.scorecards.map((card, index) => (
           <React.Fragment key={card.id}>
             <div

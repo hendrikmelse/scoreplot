@@ -5,6 +5,7 @@ import { isUntouched } from "@/Game";
 import { useGame } from "@/GameContext";
 import { useToast } from "@/ToastContext";
 import { lastRound } from "@/utils/Scores";
+import { runWithTransition, usePageAppeared } from "@/viewTransition";
 import { ScoreLinesBackdrop } from "./ScoreLinesBackdrop";
 
 function plural(count: number, noun: string): string {
@@ -15,20 +16,23 @@ export function TitlePage() {
   const navigate = useNavigate();
   const { game, updateGame, hasGame } = useGame();
   const { showToast } = useToast();
+  usePageAppeared();
 
   function startNewGame() {
     const previous = game;
     const losingSomething = hasGame && !isUntouched(previous);
 
-    updateGame({ type: "new_game" });
-    if (losingSomething) {
-      showToast({
-        message: "Started a new game",
-        actionLabel: "Undo",
-        onAction: () => updateGame({ type: "load_game", game: previous }),
-      });
-    }
-    navigate("/play", { state: { newGame: true } });
+    runWithTransition(() => {
+      updateGame({ type: "new_game" });
+      if (losingSomething) {
+        showToast({
+          message: "Started a new game",
+          actionLabel: "Undo",
+          onAction: () => updateGame({ type: "load_game", game: previous }),
+        });
+      }
+      navigate("/play", { state: { newGame: true } });
+    }, "to-game");
   }
 
   return (
@@ -50,7 +54,10 @@ export function TitlePage() {
           </button>
           {/* There is nothing to continue until there has been a game */}
           {hasGame && (
-            <button className="title-button" onClick={() => navigate("/play")}>
+            <button
+              className="title-button"
+              onClick={() => runWithTransition(() => navigate("/play"), "to-game")}
+            >
               <span className="continue-text">
                 <span className="continue-game-text">Continue Game</span>
                 <span className="continue-game-name">{game.name}</span>

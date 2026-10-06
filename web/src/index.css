@@ -2,6 +2,17 @@
    not loaded from anywhere, so that it is there on a table with no signal. */
 @import "@fontsource-variable/inter/wght.css";
 
+/* What is shown until Inter has loaded, made to take up the same room as Inter does, line for line, so
+   that nothing moves (the title card, say, which is centered) when the real font arrives. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial");
+  size-adjust: 107.12%;
+  ascent-override: 90.2%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+}
+
 /* The icons. Their names are written as text, which the font turns into the icon (a ligature), so
    until it has loaded the names must stay hidden (font-display: block) rather than show up as words.
 
@@ -21,6 +32,11 @@
 
 .material-symbols-outlined {
   display: inline-block;
+  /* A square, whether or not the font is there. Without it the icon's name, written out, takes up its
+     room until the font has loaded, and everything around it moves when it does. */
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
   font-family: "Material Symbols Outlined";
   font-weight: normal;
   font-style: normal;
@@ -39,6 +55,7 @@ body {
   margin: 0;
   font-family:
     "Inter Variable",
+    "Inter Fallback",
     system-ui,
     -apple-system,
     "Segoe UI",

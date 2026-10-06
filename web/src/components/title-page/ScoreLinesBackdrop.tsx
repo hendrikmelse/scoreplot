@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { defaultColors } from "@/config";
 
 /** A different sequence for each seed, though the same one for the same seed */
@@ -39,11 +40,11 @@ function makeLines(random: () => number) {
   });
 }
 
-// Made once each time the app is loaded, so every refresh of the page has a new set of lines
-const lines = makeLines(seededRandom(Math.floor(Math.random() * 2 ** 32)));
-
 /** Lines in the style of the plot, across the whole screen, for the title page to sit on */
 export function ScoreLinesBackdrop() {
+  // Made when the page appears, so that every time it does (not only on loading the app) is different
+  const [lines] = useState(() => makeLines(seededRandom(Math.floor(Math.random() * 2 ** 32))));
+
   return (
     <svg
       className="score-lines-backdrop"

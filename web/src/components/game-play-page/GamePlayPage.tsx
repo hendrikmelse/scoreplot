@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useGame } from "@/GameContext";
 import { FittedText } from "@/components/FittedText";
 import { lastRound } from "@/utils/Scores";
+import { runWithTransition, usePageAppeared } from "@/viewTransition";
 import { EnterScoresComponent } from "./enter-scores-component/EnterScoresComponent";
 import { PlayerListComponent } from "./player-list-component/PlayerListComponent";
 import { PlotScoresComponent } from "./plot-scores-component/PlotScoresComponent";
@@ -20,6 +21,7 @@ const contentButtons: { content: Content; icon: string; label: string }[] = [
 
 export function GamePlayPage() {
   const navigate = useNavigate();
+  usePageAppeared();
   // "Start New Game" opens this page already in edit mode so the players can be set up
   const startInEditMode = (useLocation().state as { newGame?: boolean } | null)?.newGame === true;
   const { game, updateGame } = useGame();
@@ -198,7 +200,7 @@ export function GamePlayPage() {
               className="button-home"
               aria-label="Home"
               title="Home"
-              onClick={() => navigate("/")}
+              onClick={() => runWithTransition(() => navigate("/"), "to-title")}
             >
               <span className="material-symbols-outlined home-chevron" aria-hidden="true">
                 chevron_left
