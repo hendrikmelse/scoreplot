@@ -303,8 +303,45 @@ html[data-transition="to-game"]::view-transition-group(root) {
   border-radius: 24px;
   color: $light-elements;
 
+  // Fades in and out. The browser hides a closed dialog with display and the top layer, which
+  // are switched over at the end of the fade out, and the starting style is where it fades in from.
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    overlay 0.2s allow-discrete,
+    display 0.2s allow-discrete;
+
+  &[open] {
+    opacity: 1;
+  }
+
   &::backdrop {
+    background-color: rgba(black, 0);
+    transition:
+      background-color 0.2s ease,
+      overlay 0.2s allow-discrete,
+      display 0.2s allow-discrete;
+  }
+
+  &[open]::backdrop {
     background-color: rgba(black, 0.75);
+  }
+
+  @starting-style {
+    &[open] {
+      opacity: 0;
+    }
+
+    &[open]::backdrop {
+      background-color: rgba(black, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    &::backdrop {
+      transition-duration: 0s;
+    }
   }
 
   .support-header {
