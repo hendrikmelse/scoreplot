@@ -10,6 +10,8 @@ import { EnterScoresComponent } from "./enter-scores-component/EnterScoresCompon
 import { PlayerListComponent } from "./player-list-component/PlayerListComponent";
 import { PlotScoresComponent } from "./plot-scores-component/PlotScoresComponent";
 import { ScoreTableComponent } from "./score-table-component/ScoreTableComponent";
+import { useKeepAboveKeyboard } from "@/useKeepAboveKeyboard";
+import { FullscreenButton } from "@/components/FullscreenButton";
 
 type Content = "keypad" | "plot" | "table";
 
@@ -25,6 +27,7 @@ export function GamePlayPage() {
   // "Start New Game" opens this page already in edit mode so the players can be set up
   const startInEditMode = (useLocation().state as { newGame?: boolean } | null)?.newGame === true;
   const { game, updateGame } = useGame();
+  useKeepAboveKeyboard();
   const [currentContent, setCurrentContent] = useState<Content>("keypad");
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   // Continuing a game picks up at its latest round; a new game starts at round 1
@@ -209,6 +212,7 @@ export function GamePlayPage() {
                 home
               </span>
             </button>
+            <FullscreenButton className="button-fullscreen" />
           </div>
           <div className={clsx("game-name-section", { editing: editingName })} ref={gameNameRef}>
             {editingName ? (
