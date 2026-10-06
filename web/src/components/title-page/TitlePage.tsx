@@ -1,5 +1,5 @@
 import "./TitlePage.scss";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { defaultColors, supportOptions } from "@/config";
 import { isUntouched } from "@/Game";
@@ -21,6 +21,14 @@ export function TitlePage() {
   const { showToast } = useToast();
   usePageAppeared();
   const [supportOpen, setSupportOpen] = useState(false);
+  const supportLinkRef = useRef<HTMLButtonElement>(null);
+
+  // The browser gives the focus back to the link when the window closes, which with Escape shows
+  // the focus ring on it. It is let go of so that the link is not left highlighted.
+  function closeSupport() {
+    setSupportOpen(false);
+    supportLinkRef.current?.blur();
+  }
 
   function startNewGame() {
     const previous = game;
@@ -78,16 +86,16 @@ export function TitlePage() {
         </div>
         {/* Nothing to link to until there is somewhere to send people */}
         {supportOptions.length > 0 && (
-          <button className="support-link" onClick={() => setSupportOpen(true)}>
+          <button
+            ref={supportLinkRef}
+            className="support-link"
+            onClick={() => setSupportOpen(true)}
+          >
             Enjoying Scoreplot? Support it
           </button>
         )}
       </div>
-      <SupportDialog
-        open={supportOpen}
-        options={supportOptions}
-        onClose={() => setSupportOpen(false)}
-      />
+      <SupportDialog open={supportOpen} options={supportOptions} onClose={closeSupport} />
     </div>
   );
 }
