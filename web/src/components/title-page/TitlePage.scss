@@ -267,6 +267,140 @@ html[data-transition="to-game"]::view-transition-group(root) {
   }
 }
 
+// A quiet way to the window of ways to support the app, under the buttons
+.support-link {
+  margin: -18px 0 -8px; // Closer to the buttons than they are to the title, and not adding to the height
+  padding: 10px 14px;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: rgba($light-elements, 0.45);
+  cursor: pointer;
+  font-size: 11pt;
+  touch-action: manipulation;
+
+  @media (hover: hover) {
+    &:hover {
+      color: rgba($light-elements, 0.8);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid $light-elements;
+    outline-offset: 2px;
+  }
+}
+
+// The window over the page, which the browser puts above everything and dims what is behind
+.support-dialog {
+  width: min(400px, calc(100% - 32px));
+  max-height: calc(100% - 48px);
+  margin: auto;
+  padding: 24px 24px 20px;
+  overflow-y: auto;
+  background-color: $gray-1;
+  border: 1px solid $gray-4;
+  border-radius: 24px;
+  color: $light-elements;
+
+  &::backdrop {
+    background-color: rgba(black, 0.75);
+  }
+
+  .support-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    h2 {
+      margin: 0;
+      font-size: 18pt;
+      font-weight: 700;
+    }
+  }
+
+  .support-close {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin-right: -8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    border-radius: 14px;
+    color: rgba($light-elements, 0.6);
+    cursor: pointer;
+    touch-action: manipulation;
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: $gray-3;
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid $light-elements;
+    }
+  }
+
+  .support-blurb {
+    margin: 10px 0 18px;
+    color: rgba($light-elements, 0.7);
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  .support-options {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    a {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 14px 18px;
+      background-color: $gray-2;
+      border: 1px solid $gray-4;
+      border-radius: 16px;
+      color: $light-elements;
+      text-decoration: none;
+      touch-action: manipulation;
+
+      @media (hover: hover) {
+        &:hover {
+          background-color: $gray-3;
+        }
+      }
+
+      &:active {
+        background-color: $gray-4;
+      }
+
+      &:focus-visible {
+        outline: 2px solid $light-elements;
+        outline-offset: 2px;
+      }
+    }
+
+    .support-option-name {
+      font-size: 14pt;
+      font-weight: 600;
+    }
+
+    .support-option-description {
+      color: rgba($light-elements, 0.6);
+      font-size: 11pt;
+    }
+  }
+}
+
 // On a portrait screen, which is a phone, keep clear of its rounded corners
 @include stacked {
   .title-page-background {

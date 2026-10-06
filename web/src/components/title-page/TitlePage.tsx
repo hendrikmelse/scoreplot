@@ -1,12 +1,14 @@
 import "./TitlePage.scss";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { defaultColors } from "@/config";
+import { defaultColors, supportOptions } from "@/config";
 import { isUntouched } from "@/Game";
 import { useGame } from "@/GameContext";
 import { useToast } from "@/ToastContext";
 import { lastRound } from "@/utils/Scores";
 import { runWithTransition, usePageAppeared } from "@/viewTransition";
 import { ScoreLinesBackdrop } from "./ScoreLinesBackdrop";
+import { SupportDialog } from "./SupportDialog";
 import { FullscreenButton } from "@/components/FullscreenButton";
 
 function plural(count: number, noun: string): string {
@@ -18,6 +20,7 @@ export function TitlePage() {
   const { game, updateGame, hasGame } = useGame();
   const { showToast } = useToast();
   usePageAppeared();
+  const [supportOpen, setSupportOpen] = useState(false);
 
   function startNewGame() {
     const previous = game;
@@ -73,7 +76,18 @@ export function TitlePage() {
             </button>
           )}
         </div>
+        {/* Nothing to link to until there is somewhere to send people */}
+        {supportOptions.length > 0 && (
+          <button className="support-link" onClick={() => setSupportOpen(true)}>
+            Enjoying Scoreplot? Support it
+          </button>
+        )}
       </div>
+      <SupportDialog
+        open={supportOpen}
+        options={supportOptions}
+        onClose={() => setSupportOpen(false)}
+      />
     </div>
   );
 }
