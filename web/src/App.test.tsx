@@ -1489,10 +1489,13 @@ describe("keypad caption", () => {
     await user.click(container.querySelector(".delete-button")!);
 
     expect(screen.getByText("No players yet")).toBeTruthy();
-    expect(screen.getByText("Press Add player to add one")).toBeTruthy();
+    const hint = container.querySelector(".player-list-empty-hint")!;
+    expect(hint.textContent).toBe("Press Add player to add one");
+    expect(hint.querySelector(".player-list-empty-button")!.textContent).toBe("Add player");
 
     await user.click(container.querySelector(".done-button")!);
-    expect(screen.getByText("Press Edit players to add some")).toBeTruthy();
+    expect(hint.textContent).toBe("Press Edit players to add some");
+    expect(hint.querySelector(".player-list-empty-button")!.textContent).toBe("Edit players");
 
     await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);

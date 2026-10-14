@@ -324,7 +324,11 @@ export function PlayerListComponent({
           <div className="player-list-empty">
             <div className="player-list-empty-title">No players yet</div>
             <div className="player-list-empty-hint">
-              {editing ? "Press Add player to add one" : "Press Edit players to add some"}
+              Press{" "}
+              <span className="player-list-empty-button">
+                {editing ? "Add player" : "Edit players"}
+              </span>{" "}
+              {editing ? "to add one" : "to add some"}
             </div>
           </div>
         )}

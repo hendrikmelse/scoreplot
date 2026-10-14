@@ -141,6 +141,11 @@ $flash-color: rgba($light-elements, 0.35);
     margin-top: 6px;
     font-size: 11pt;
   }
+
+  .player-list-empty-button {
+    color: $light-elements;
+    font-weight: bold;
+  }
 }
 
 .player-list {
@@ -193,6 +198,11 @@ $flash-color: rgba($light-elements, 0.35);
   // stops growing, and the buttons stay in view below it.
   &.editing {
     flex: 0 1 auto;
+
+    // With no room to spare to centre it in, the message would sit right on top of the buttons
+    .player-list-empty {
+      margin: 0 0 16px;
+    }
   }
 
   .player {
