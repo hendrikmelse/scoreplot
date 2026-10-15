@@ -675,11 +675,20 @@ describe("game play page", () => {
             height: 40,
           }) as DOMRect;
         await user.click(swatch);
-        return view.container.querySelector<HTMLElement>(".color-select-content")!;
+        return document.querySelector<HTMLElement>(".color-select-content")!;
       }
 
       beforeEach(() => {
         Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+      });
+
+      it("stays in edit mode while choosing a color and when closing the picker", async () => {
+        const user = userEvent.setup();
+        const picker = await openPickerWithSwatchAt(300);
+        await user.click(picker.querySelector(".color-card")!);
+        expect(document.querySelector(".done-button")).not.toBeNull();
+        await user.click(document.querySelector(".color-select-background")!);
+        expect(document.querySelector(".done-button")).not.toBeNull();
       });
 
       it("sits next to the color it is for", async () => {

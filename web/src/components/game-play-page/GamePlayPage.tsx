@@ -81,6 +81,8 @@ export function GamePlayPage() {
       const target = event.target as Node;
       // Pressing a toast (like Undo, after deleting a player) is part of editing, not leaving it
       if (target instanceof Element && target.closest(".toasts")) return;
+      // Likewise the color picker, which is in the body, not the player list, but is part of editing
+      if (target instanceof Element && target.closest(".color-select-background")) return;
       if (!gameNameRef.current?.contains(target) && !playerListRef.current?.contains(target)) {
         exitEditMode();
       }
