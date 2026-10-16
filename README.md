@@ -19,3 +19,7 @@ To look around with some example data, open <http://localhost:5173/?demo> and pr
 ("Start New Game" always starts blank.)
 
 Other scripts (run from the repo root): `build`, `typecheck`, `lint`, `format`, `test`.
+
+## License
+
+[MIT](LICENSE)

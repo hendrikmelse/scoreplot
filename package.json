@@ -1,6 +1,7 @@
 {
   "name": "scoreplot",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "install:all": "npm --prefix web install",
     "dev": "npm --prefix web run dev",
