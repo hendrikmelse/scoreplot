@@ -1,4 +1,3 @@
-@use "sass:color";
 @use "../../../Colors.scss" as *;
 @use "../../../Breakpoints.scss" as *;
 
@@ -12,19 +11,61 @@ $drag-room: 10px;
 $corner-room: 14px;
 // How far the list fades out at an edge that has more of it beyond, instead of cutting off
 $fade-size: 36px;
-$flash-duration: 800ms;
-$done-color: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
-$flash-color: rgba($light-elements, 0.35);
+$bounce-duration: 400ms;
 
-@keyframes player-flash-a {
+// A score that has just been updated hops up in size and settles back. There are two copies of it so
+// that a second update straight after the first can start it over.
+// What changes with the round slides in from the side that the new round is on
+@keyframes slide-from-next {
   from {
-    background-color: $flash-color;
+    transform: translateX(28px);
+    opacity: 0;
   }
 }
 
-@keyframes player-flash-b {
+@keyframes slide-from-prev {
   from {
-    background-color: $flash-color;
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+}
+
+.slide-from-next {
+  animation: slide-from-next 200ms ease-out;
+}
+
+.slide-from-prev {
+  animation: slide-from-prev 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-from-next,
+  .slide-from-prev {
+    animation: none;
+  }
+}
+
+@keyframes score-bounce-a {
+  12.5% {
+    transform: scale(1.35);
+  }
+  55% {
+    transform: scale(0.92);
+  }
+  75% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes score-bounce-b {
+  12.5% {
+    transform: scale(1.35);
+  }
+  55% {
+    transform: scale(0.92);
+  }
+  75% {
+    transform: scale(1.08);
   }
 }
 
@@ -101,11 +142,18 @@ $flash-color: rgba($light-elements, 0.35);
     // the heading changes, instead of following its width
     min-width: 136px;
     padding-bottom: 3px;
+    overflow: hidden; // So that the heading slides in from the edge of this, not over the arrows
     color: $light-elements;
     font-size: 18pt;
     font-weight: bold;
     text-align: center;
     white-space: nowrap;
+
+    // A plain inline element cannot be moved by a transform, which is all that would be left of the
+    // slide, with only the fading in of it
+    > span {
+      display: inline-block;
+    }
   }
 
   // Stacked, the list is a panel of its own with space on both sides
@@ -193,24 +241,12 @@ $flash-color: rgba($light-elements, 0.35);
     mask-image: $fade;
   }
 
-  // ...except while the players are being edited, when it is only as tall as they need, so that the
-  // add player button comes right after the last one. Once the players fill the room there is, it
-  // stops growing, and the buttons stay in view below it.
-  &.editing {
-    flex: 0 1 auto;
-
-    // With no room to spare to centre it in, the message would sit right on top of the buttons
-    .player-list-empty {
-      margin: 0 0 16px;
-    }
-  }
-
   .player {
     position: relative;
     isolation: isolate; // So the hit area below can sit behind this player's own content
     flex: none; // Rows keep their height instead of being squashed to fit
     width: 100%;
-    height: $row-height; // The same in edit mode, where the name is in a box
+    height: $row-height;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -230,14 +266,7 @@ $flash-color: rgba($light-elements, 0.35);
       inset: (-$player-gap * 0.5) 0;
     }
 
-    &.dragging {
-      z-index: 1;
-      background-color: $gray-2;
-      box-shadow: 0 0 6px 0 black;
-      transition: none;
-    }
-
-    &:not(.editing):not(.selected):not(.pinned):hover {
+    &:not(.selected):not(.pinned):hover {
       background-color: $gray-2;
       transition: background-color 40ms ease;
     }
@@ -248,47 +277,8 @@ $flash-color: rgba($light-elements, 0.35);
       background-color: $gray-4;
     }
 
-    // Flashes when the player's score has just been updated. The animation only says where to
-    // start, so it fades back to whatever the row looks like otherwise. There are two copies of
-    // it so that a second update straight after the first can start it over.
-    &.flash-a {
-      animation: player-flash-a $flash-duration ease-out;
-    }
-
-    &.flash-b {
-      animation: player-flash-b $flash-duration ease-out;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      &.flash-a,
-      &.flash-b {
-        animation: none;
-      }
-    }
-
     .spacer-left {
       width: 10px;
-    }
-
-    .drag-handle {
-      color: $light-elements;
-      cursor: grab;
-      touch-action: none; // Or a finger dragging it would scroll the list instead, and cancel the drag
-      overflow: hidden;
-      align-self: stretch;
-      width: $row-height;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: width 60ms ease;
-
-      &.hidden {
-        width: 0;
-      }
-    }
-
-    &.dragging .drag-handle {
-      cursor: grabbing;
     }
 
     .player-color {
@@ -308,53 +298,26 @@ $flash-color: rgba($light-elements, 0.35);
       white-space: nowrap;
     }
 
-    .player-name-input {
-      background-color: $gray-3;
-      flex: 1;
-      width: 0; // Size comes from flex-grow only, not the input's intrinsic width
-      min-width: 0;
-      height: 32px;
-      padding: 0 8px;
-      border: 1px solid $gray-5;
-      border-radius: 8px;
-      color: $light-elements;
-      font-family: inherit;
-      font-size: 18pt;
-      font-weight: bold;
-
-      &:focus {
-        outline: none;
-        border-color: $light-elements;
-      }
-    }
-
     .score {
       color: $light-elements;
       font-size: 18pt;
       font-weight: bold;
-      overflow: hidden;
       display: flex;
       align-items: center;
-      transition: width 60ms ease;
 
-      &.hidden {
-        width: 0;
+      &.flash-a {
+        animation: score-bounce-a $bounce-duration ease-out;
       }
-    }
 
-    .delete-button {
-      color: $light-elements;
-      cursor: pointer;
-      overflow: hidden;
-      align-self: stretch;
-      width: $row-height;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: width 60ms ease;
+      &.flash-b {
+        animation: score-bounce-b $bounce-duration ease-out;
+      }
 
-      &.hidden {
-        width: 0;
+      @media (prefers-reduced-motion: reduce) {
+        &.flash-a,
+        &.flash-b {
+          animation: none;
+        }
       }
     }
 
@@ -373,87 +336,6 @@ $flash-color: rgba($light-elements, 0.35);
       .spacer-right {
         width: 10px;
       }
-    }
-  }
-}
-
-// The buttons below the players: for editing them, and for adding one (and finishing) while they are
-// being edited. It follows the last player, or stays in view below the scrolling list if there are
-// many.
-.list-footer {
-  flex: none;
-  // The room below the list, and the room the list leaves for the panel's corners, make up the gap
-  margin: (12px - $drag-room - $corner-room) 0 10px; // The bottom lines up with the button that expands the list
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-
-  button {
-    @include secondary-button;
-    min-height: 44px;
-    padding: 0 20px 0 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 600;
-
-    .material-symbols-outlined {
-      font-size: 22px;
-    }
-  }
-
-  // Not wanted often, so it is quiet until it is pointed at
-  .edit-players-button {
-    background-color: transparent;
-    border-color: $gray-3;
-    color: rgba($light-elements, 0.45);
-
-    @media (hover: hover) {
-      &:hover:not(:active) {
-        background-color: $gray-2;
-        border-color: $gray-5;
-        color: $light-elements;
-      }
-    }
-  }
-
-  // An empty place for another player: a dashed outline that fills in when it is pointed at
-  .add-player-button {
-    background-color: transparent;
-    border: 2px dashed $gray-5;
-    color: rgba($light-elements, 0.75);
-
-    @media (hover: hover) {
-      &:hover {
-        border-color: $light-elements;
-        color: $light-elements;
-      }
-    }
-
-    &:active {
-      border-color: $light-elements;
-      color: $light-elements;
-    }
-  }
-
-  // The way out of editing, so it is as prominent as the Enter key of the keypad
-  .done-button {
-    background-color: $done-color;
-    border-color: $done-color;
-    color: $background;
-
-    // The same selectors as the shared button's hover and press, to win over its backgrounds
-    @media (hover: hover) {
-      &:hover:not(:disabled) {
-        background-color: $done-color;
-        filter: brightness(0.94);
-      }
-    }
-
-    &:active:not(:disabled) {
-      background-color: $done-color;
-      filter: brightness(0.85);
     }
   }
 }

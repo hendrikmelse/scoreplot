@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "../../Colors.scss" as *;
 @use "../../Breakpoints.scss" as *;
 
@@ -6,6 +7,16 @@ $left-width: clamp(420px, 38vw, 500px);
 
 // How much the tabs curve where they meet the main panel
 $tab-flare: 8px;
+
+// The column of tabs beside the player list, which the header stops short of
+$tabs-width: 90px;
+
+// The sizes of what is stacked, which the size of the panel is worked out from (see .content-inner)
+$stacked-header-height: 64px;
+$stacked-tabs-height: 56px;
+$stacked-gap: 10px;
+
+$done-color: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
 
 .game-play-background {
   display: flex;
@@ -26,29 +37,26 @@ $tab-flare: 8px;
 
   .top-left-section {
     flex: none; // Keep its height, however long the player list gets
-    width: 100%;
-    height: 100px;
+    width: calc(100% - $tabs-width); // To end where the player list does, not where the tabs do
+    height: 45px;
     display: flex;
     gap: 10px;
 
-    // Just the Home button, as tall as the header, which is as tall as the outline of the game name
+    // Home, the button for editing the players (or finishing), then fullscreen, side by side
     .top-buttons-section {
-      width: 80px;
+      flex: 1;
+      min-width: 0;
       display: flex;
-      flex-direction: column;
       gap: 10px;
 
       button {
-        flex: 1;
         display: flex;
         align-items: center;
-        justify-content: flex-start; // Over towards the edge of the screen, which is where back is
+        justify-content: center;
         background-color: $gray-1;
         border: 1px solid $gray-4;
-        border-left: 0;
-        border-top-right-radius: 16px;
-        border-bottom-right-radius: 16px;
-        color: rgba($light-elements, 0.55); // Both icons, which are quiet, as it is not used much
+        border-radius: 16px;
+        color: rgba($light-elements, 0.55); // The icons are quiet, as they are not used much
         cursor: pointer;
 
         &:hover {
@@ -68,93 +76,54 @@ $tab-flare: 8px;
         }
       }
 
-      // Fullscreen, under Home. Smaller icon and centered, as it is not about going back.
+      // Over towards the edge of the screen, which is where back is
+      .button-home {
+        flex: none;
+        width: 80px;
+        justify-content: flex-start;
+        border-left: 0;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+
+      // Smaller icon, as it is not about going back
       .button-fullscreen {
-        justify-content: center;
+        flex: none;
+        width: 56px;
 
         span {
           font-size: 28px;
         }
       }
-    }
 
-    .game-name-section {
-      position: relative;
-      flex: 1;
-      min-width: 0;
-      margin-right: 10px;
-      background-color: $gray-1;
-      border: 1px solid $gray-4;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      // While the name is being edited, the panel stays the shade that it was when it was pointed
-      // at to start, so that there is no change of color as the text box replaces the name
-      &.editing {
-        background-color: $gray-2;
-      }
-
-      // The name, which is pressed to rename the game
-      .game-name-label {
-        position: relative;
-        width: 100%;
-        height: 100%;
+      .edit-players-button,
+      .done-button {
+        flex: 1;
         min-width: 0;
-        padding: 0 16px 3px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: none;
-        border: 0;
-        border-radius: 15px;
-        color: $light-elements;
-        cursor: pointer;
+        gap: 8px;
         font-family: inherit;
-        font-size: 22pt;
-        font-weight: bold;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        transition: background-color 60ms ease;
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
 
-        .game-name-text {
-          min-width: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        @media (hover: hover) {
-          &:hover {
-            background-color: $gray-2;
-          }
-        }
-
-        // No lighter shade for pressing: the name turns into a text box as soon as it is pressed,
-        // and it has to carry on looking the same through that, or it flickers
-        &:focus-visible {
-          outline: 2px solid $light-elements;
-          outline-offset: -4px;
+        span {
+          font-size: 22px;
         }
       }
 
-      .game-name-input {
-        background-color: $gray-3;
-        width: calc(100% - 20px);
-        min-width: 0; // Don't let the input's intrinsic width resize the layout
-        padding: 0 8px 3px;
-        border: 1px solid $gray-5;
-        border-radius: 8px;
-        color: $light-elements;
-        font-family: inherit;
-        font-size: 22pt;
-        font-weight: bold;
-        text-align: center;
+      // The way out of editing, so it is as prominent as the Enter key of the keypad
+      .done-button {
+        background-color: $done-color;
+        border-color: $done-color;
+        color: $background;
 
-        &:focus {
-          outline: none;
-          border-color: $light-elements;
+        &:hover {
+          background-color: $done-color;
+          filter: brightness(0.94);
+        }
+
+        &:active {
+          filter: brightness(0.85);
         }
       }
     }
@@ -173,23 +142,17 @@ $tab-flare: 8px;
       display: flex; // The round buttons and the add player button stay put, the list scrolls
       flex-direction: column;
       overflow: hidden;
-      position: relative; // For the button that expands it, in the corner
       background-color: $gray-1;
       border: 1px solid $gray-4;
       border-left: 0;
       border-top-right-radius: 16px;
       border-bottom-right-radius: 16px;
-
-      // Only for the stacked layout, where there is room below to grow into
-      .expand-list-button {
-        display: none;
-      }
     }
 
     // The tabs for the keypad, the plot and the table. Side by side, they hang off the left edge
     // of the content, and the selected one joins up with it.
     .buttons-section {
-      flex: 0 0 90px;
+      flex: 0 0 $tabs-width;
       height: 90%;
       display: flex;
       flex-direction: column;
@@ -229,7 +192,7 @@ $tab-flare: 8px;
         // corner. The other tabs have square corners where they meet the panel's line. Each curve is
         // a small square, filled where the corner is, and drawn with the same line as the outline.
         &.selected {
-          width: 73px;
+          width: 76px;
           margin-right: -1px;
           z-index: 2;
 
@@ -270,15 +233,59 @@ $tab-flare: 8px;
           }
         }
 
-        &:hover:not(.selected) {
-          background-color: $gray-3;
+        // Only for a mouse. On a touchscreen :hover stays on what was tapped, which for the tab that
+        // was just pressed to drop it would leave it looking like it is still being pointed at.
+        @media (hover: hover) {
+          &:hover:not(.selected) {
+            background-color: $gray-3;
+          }
         }
       }
     }
   }
 }
 
+// Fills the panel, whatever it holds. When the panel changes to another, either the new one slides up
+// over the one that it replaces, or the old one drops away to uncover the new one, which are why each
+// has a background of its own.
+.content-inner {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: $gray-1;
+
+  &.entering {
+    z-index: 2;
+    animation: content-slide-up 250ms ease-out;
+  }
+
+  &.dropping {
+    z-index: 2;
+    animation: content-drop-down 250ms ease-in forwards;
+  }
+}
+
+@keyframes content-drop-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes content-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-inner.entering,
+  .content-inner.dropping {
+    animation: none;
+  }
+}
+
 .content-section {
+  position: relative;
   flex: 1;
   min-width: 0;
   height: 90%;
@@ -287,6 +294,9 @@ $tab-flare: 8px;
   border-right: none;
   border-top-left-radius: 16px;
   border-bottom-left-radius: 16px;
+  // What is in it is cut off at its rounded corners (inside its border), rather than being drawn over
+  // them, and a tab sliding over another is not to be seen outside it
+  overflow: hidden;
 }
 
 // On portrait screens everything is stacked: the header, the list, the content, then the tabs
@@ -294,11 +304,15 @@ $tab-flare: 8px;
   .game-play-background {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(160px, 36%) minmax(0, 1fr) auto;
-    gap: 10px;
+    grid-template-rows: auto 36fr 64fr auto;
+    transition:
+      transform 150ms ease-out,
+      grid-template-rows 250ms ease;
+    gap: $stacked-gap;
     // More room above and below than at the sides, as a phone's screen has rounded corners
     padding: 28px 12px;
     align-items: stretch;
+    container-type: size; // For working out how tall the panel will be, see .content-inner
   }
 
   // The columns are only there to arrange things side by side. Take them out of the way, so that
@@ -310,45 +324,28 @@ $tab-flare: 8px;
 
   .left-section .top-left-section {
     grid-row: 1;
-    height: 64px;
+    width: 100%; // There are no tabs beside the list here
+    height: $stacked-header-height;
 
     .top-buttons-section {
-      width: auto;
-      flex-direction: row;
-
-      button {
-        flex: none;
-        width: 64px;
+      .button-home {
+        width: 76px;
+        justify-content: center;
         border-left: 1px solid $gray-4;
         border-radius: 16px;
       }
 
       .button-fullscreen {
-        width: 48px;
-      }
-    }
-
-    .game-name-section {
-      margin-right: 0;
-
-      .game-name-label,
-      .game-name-input {
-        font-size: 18pt;
+        width: 60px;
       }
 
-      // The name can take two lines, so that more of a long one fits on a narrow screen
-      .game-name-label {
-        padding: 0 12px;
-      }
+      // There is room for it to be bigger
+      .edit-players-button {
+        font-size: 17px;
 
-      .game-name-label .game-name-text {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        font-size: 16pt;
-        line-height: 1.15;
-        text-align: center;
-        white-space: normal;
+        span {
+          font-size: 24px;
+        }
       }
     }
   }
@@ -363,7 +360,7 @@ $tab-flare: 8px;
       button {
         flex: 1;
         width: auto;
-        height: 56px;
+        height: $stacked-tabs-height;
         margin-right: 0;
         border: 1px solid $gray-4;
         border-radius: 16px;
@@ -405,66 +402,6 @@ $tab-flare: 8px;
       grid-row: 2;
       border-left: 1px solid $gray-4;
       border-radius: 16px;
-
-      // Small, in the lower right, and over the list rather than taking room from it. Styled like the
-      // Edit players button: quiet until it is pointed at.
-      .expand-list-button {
-        position: absolute;
-        right: 10px;
-        bottom: 10px;
-        z-index: 1;
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: $gray-1;
-        border: 1px solid $gray-3;
-        border-radius: 12px;
-        color: rgba($light-elements, 0.45);
-        cursor: pointer;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        transition:
-          transform 60ms ease,
-          background-color 60ms ease,
-          border-color 60ms ease,
-          color 60ms ease;
-
-        @media (hover: hover) {
-          &:hover:not(:active) {
-            background-color: $gray-2;
-            border-color: $gray-5;
-            color: $light-elements;
-          }
-        }
-
-        &:active {
-          transform: scale(0.94);
-          background-color: $gray-4;
-        }
-
-        &:focus-visible {
-          outline: 2px solid $light-elements;
-          outline-offset: 2px;
-        }
-
-        // Two chevrons pointing down, overlapping so that they read as one icon
-        .double-chevron {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-
-          .material-symbols-outlined {
-            font-size: 22px;
-            transform: rotate(90deg);
-
-            + .material-symbols-outlined {
-              margin-top: -13px;
-            }
-          }
-        }
-      }
     }
   }
 
@@ -473,20 +410,78 @@ $tab-flare: 8px;
     height: auto;
     border-right: 1px solid $gray-4;
     border-radius: 16px;
+    overflow: hidden; // So that its contents do not show outside it while it changes size
   }
 
-  // The list takes the main panel's place, which stays where it is but out of sight
-  .list-expanded {
-    .left-section .bottom-left-section .player-list-section {
-      grid-row: 2 / 4;
+  // The panel changes size as the list gives it room and takes it back, and what is in it does not:
+  // it is the size that the panel is going to be, and the panel shows as much of it as it has room
+  // for. It is kept to the bottom of the panel, which is the edge that stays where it is (the top is
+  // what moves), so what is in it stays still on the screen as the panel grows or shrinks around it,
+  // whether it is being covered by another tab, or by the list, or is uncovered. That size is worked out from the room that there is
+  // (the height of the page, less what is not shared out between them), as the panel takes 64
+  // hundredths of it when it is beside the list, or all of it (and the gap above) for the table.
+  $shared-room: calc(100cqh - $stacked-header-height - $stacked-tabs-height - 3 * $stacked-gap);
+  .content-inner {
+    top: auto;
+    bottom: 0;
+    height: calc($shared-room * 0.64 - 2px); // Less the panel's border
 
-      .expand-list-button .double-chevron {
-        transform: rotate(180deg); // Pointing up: shrink
-      }
+    &.is-table {
+      height: calc($shared-room + $stacked-gap - 2px);
+    }
+  }
+
+  // The list and the panel share the room between them, as fractions of a hundred that add up to the
+  // same each time (so that nothing is lost in between), and give it to each other by changing
+  // them: all of it to the table, which has the players in its own headings, or all of it to the
+  // list, when it is expanded. Changing them is animated, here and by the margins below. Whichever
+  // has no room left is hidden once it has finished going (which is why that is delayed).
+  .content-section,
+  .left-section .bottom-left-section .player-list-section {
+    min-height: 0; // To be able to go all the way down to nothing
+    transition: margin 250ms ease;
+  }
+
+  .table-showing:not(.list-expanded) {
+    grid-template-rows: auto 0fr 100fr auto;
+
+    .content-section {
+      margin-top: -10px; // The gap that the list's row has above it is not wanted either
+    }
+
+    .left-section .bottom-left-section .player-list-section {
+      visibility: hidden;
+      transition:
+        margin 250ms ease,
+        visibility 0s linear 250ms;
+    }
+  }
+
+  .list-expanded {
+    grid-template-rows: auto 100fr 0fr auto;
+
+    .left-section .bottom-left-section .player-list-section {
+      margin-bottom: -10px; // And the gap that the panel's row has below it
     }
 
     .content-section {
-      display: none;
+      visibility: hidden;
+      transition:
+        margin 250ms ease,
+        visibility 0s linear 250ms;
+    }
+  }
+
+  // The list is not to grow a scroll bar as it shrinks, for the moment that it has too little room
+  .resizing .player-list {
+    overflow-y: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .game-play-background,
+    .content-section,
+    .left-section .bottom-left-section .player-list-section {
+      transition: none !important;
     }
   }
 }
@@ -499,13 +494,6 @@ $tab-flare: 8px;
   }
 
   .left-section .top-left-section {
-    height: 76px;
-
-    .game-name-section {
-      .game-name-label,
-      .game-name-input {
-        font-size: 18pt;
-      }
-    }
+    height: 33px;
   }
 }

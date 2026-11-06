@@ -22,7 +22,7 @@ function reachable(color: Hsl): Hsl {
 }
 
 // The picker's height, which it has to leave room for below itself, and how far to stay from the edge
-const pickerHeight = 102;
+const pickerHeight = 270;
 const screenMargin = 12;
 
 export function SelectColorComponent({
@@ -41,6 +41,8 @@ export function SelectColorComponent({
   const [closing, setClosing] = useState(false);
   const [ring, setRing] = useState<{ left: number; top: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  // How tall the picker really is, once it is there, for centering it on the color
+  const [height, setHeight] = useState(pickerHeight);
   const customHex = hslToHex(customColor);
   const isCustom = !defaultColors.includes(currentColor);
 
@@ -57,6 +59,11 @@ export function SelectColorComponent({
       top: to.top - from.top - content.clientTop,
     });
   }, [currentColor]);
+
+  useLayoutEffect(() => {
+    const measured = contentRef.current?.offsetHeight;
+    if (measured) setHeight(measured);
+  }, []);
 
   function setPlayerColor(color: string) {
     updateGame({ type: "change_player_color", playerId, newColor: color });
@@ -81,8 +88,8 @@ export function SelectColorComponent({
         className="color-select-content-nub"
         style={{
           position: "absolute",
-          left: position.x + 40,
-          top: position.y + 8,
+          left: position.x + 46,
+          top: position.y + position.height / 2 - 8, // Level with the middle of the color
         }}
       />
       <div
@@ -91,11 +98,14 @@ export function SelectColorComponent({
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
-          left: position.x + 48,
-          // Next to the color, but not so low that the bottom of the picker is off the screen
+          left: position.x + 54,
+          // Level with the middle of the color, but not so high or so low that the picker is off the screen
           top: Math.max(
             screenMargin,
-            Math.min(position.y - 35, window.innerHeight - pickerHeight - screenMargin),
+            Math.min(
+              position.y + position.height / 2 - height / 2,
+              window.innerHeight - height - screenMargin,
+            ),
           ),
         }}
       >
@@ -146,6 +156,17 @@ export function SelectColorComponent({
             ))}
           </div>
         </div>
+        {/* For phones, where there is no way to tell that a press outside the panel closes it */}
+        <button
+          className="color-done-button"
+          aria-label="Close color picker"
+          onClick={() => setClosing(true)}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            check
+          </span>
+          Done
+        </button>
       </div>
     </div>,
     document.body,

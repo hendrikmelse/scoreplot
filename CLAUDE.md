@@ -15,3 +15,7 @@ npm run build
 ```
 
 The steps are defined in `.github/workflows/ci.yml`. A failure blocks the deploy job and emails the owner. It happened once after running only tsc and vitest: eslint (`react-hooks/purity`, `performance.now` in a component) and prettier (a SCSS file) both failed in CI.
+
+## While iterating
+
+When making changes with the owner in a back-and-forth session, don't run the test suite (or the rest of the CI steps) after each change, unless they ask for it. The tests take long enough to slow the iteration down significantly. Update the tests alongside the code as usual, so that they are right when they do get run, and say that they haven't been run. The full CI run before a push (above) still applies.

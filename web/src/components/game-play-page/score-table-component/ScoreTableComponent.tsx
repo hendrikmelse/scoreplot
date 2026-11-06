@@ -143,7 +143,7 @@ export function ScoreTableComponent({
           </tfoot>
         </table>
       </div>
-      <div className="score-table-hint">Tap a score to edit it</div>
+      <div className="score-table-hint">Click a score to edit it</div>
     </div>
   );
 }

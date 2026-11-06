@@ -31,6 +31,16 @@ const keys = [
   },
 ];
 
+/** Which key of the keypad a key of the keyboard is pressing, if any */
+function keypadKeyFor(key: string): string | null {
+  if (key.length === 1 && key >= "0" && key <= "9") return key;
+  if (key === ".") return ".";
+  if (key === "-" || key === "+") return "+/-";
+  if (key === "Backspace" || key === "Delete") return "Backspace";
+  if (key === "Enter") return "Enter";
+  return null;
+}
+
 /** How long a key stays pressed in at least, as a quick tap is over before it could be seen */
 const MIN_PRESS_MS = 140;
 
@@ -64,19 +74,22 @@ export function EnterScoresComponent({
   const pressedAt = useRef(0);
   const releaseTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const pressDown = (key: string, time: number) => {
+  // The key of the keypad that the key of the keyboard being held down is pressing, if there is one
+  const keyboardPressing = useRef<string | null>(null);
+
+  const pressDown = useCallback((key: string, time: number) => {
     clearTimeout(releaseTimer.current);
     pressedAt.current = time;
     setPressedKey(key);
-  };
+  }, []);
 
   // Lets go, but not before the press has been there long enough to be seen
-  const release = (time: number) => {
+  const release = useCallback((time: number) => {
     clearTimeout(releaseTimer.current);
     const remaining = MIN_PRESS_MS - (time - pressedAt.current);
     if (remaining <= 0) setPressedKey(null);
     else releaseTimer.current = setTimeout(() => setPressedKey(null), remaining);
-  };
+  }, []);
 
   useEffect(() => () => clearTimeout(releaseTimer.current), []);
 
@@ -119,16 +132,34 @@ export function EnterScoresComponent({
       const focused = document.activeElement;
       if ((e.key === "Enter" || e.key === " ") && focused instanceof HTMLButtonElement) return;
 
-      // While the players are being edited, Enter finishes that, rather than entering a score
-      if (editing && e.key === "Enter") return;
+      // While the players are being edited in the window over the page, the keys are for that
+      if (editing) return;
 
-      if (!editing) (focused as HTMLElement | null)?.blur();
+      (focused as HTMLElement | null)?.blur();
+      // The key of the keypad looks pressed, as it would for a click
+      const pad = keypadKeyFor(e.key);
+      if (pad) {
+        keyboardPressing.current = pad;
+        pressDown(pad, e.timeStamp);
+      }
       pressKey(e.key);
     }
 
+    function handleKeyUp(e: KeyboardEvent) {
+      const pad = keypadKeyFor(e.key);
+      // Only if it is the key that is the latest to have been pressed that is let go of
+      if (!pad || pad !== keyboardPressing.current) return;
+      keyboardPressing.current = null;
+      release(e.timeStamp);
+    }
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pressKey, editing]);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [pressKey, pressDown, release, editing]);
 
   return (
     <div className="keypad">

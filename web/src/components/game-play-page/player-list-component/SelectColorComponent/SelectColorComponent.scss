@@ -40,18 +40,19 @@ $cream: #f0e0b8;
   border-bottom-left-radius: 4px;
 }
 
+// The same panel wherever it is: two rows of colors, then the custom color below them. Beside the
+// color it is for on a big screen, and in the middle of the screen on a phone (see below).
 .color-select-content {
-  --card-size: 60px;
-  --slider-width: 200px;
+  --card-size: 44px;
   --thumb-size: 18px;
-  width: fit-content;
+  box-sizing: border-box;
+  width: 340px;
   background-color: $gray-1;
   border: 1px solid $gray-4;
   border-radius: 16px;
-  padding: 20px 28px;
+  padding: 20px;
   display: flex;
-  // align-items: center;
-  gap: 12px;
+  flex-direction: column;
 
   .color-card {
     height: var(--card-size);
@@ -76,31 +77,40 @@ $cream: #f0e0b8;
   }
 
   .default-colors-section {
-    display: flex;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, var(--card-size));
+    justify-content: space-between;
+    row-gap: 16px;
   }
 
   .color-section-divider {
-    margin: -8px 10px;
-    width: 3px;
+    height: 3px;
+    margin: 20px -4px;
     background-color: $gray-4;
   }
 
   .custom-color-section {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 16px;
+
+    .color-card {
+      flex: none;
+    }
 
     .color-sliders {
+      flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      gap: 18px;
 
       .color-slider {
         appearance: none;
-        width: var(--slider-width);
-        height: 12px;
+        width: 100%;
+        height: 14px;
         margin: 0;
-        border-radius: 6px;
+        border-radius: 7px;
         box-shadow: inset 0 0 0 1px #ffffff1a;
         cursor: pointer;
 
@@ -156,6 +166,11 @@ $cream: #f0e0b8;
       }
     }
   }
+
+  // Only on a phone, see below
+  .color-done-button {
+    display: none;
+  }
 }
 
 // On a phone the picker is a panel in the middle of the screen, as there is no room beside the color
@@ -166,51 +181,47 @@ $cream: #f0e0b8;
 
   // The position is set in the style attribute, for the layout beside the color
   .color-select-content {
-    --card-size: 44px;
     --thumb-size: 28px;
     position: fixed !important;
     left: 50% !important;
     top: 50% !important;
     transform: translate(-50%, -50%);
-    box-sizing: border-box;
     width: min(340px, calc(100vw - 32px));
     max-height: calc(100dvh - 24px);
     overflow-y: auto;
-    flex-direction: column;
-    gap: 0;
-    padding: 20px;
 
-    .default-colors-section {
-      display: grid;
-      grid-template-columns: repeat(4, var(--card-size));
-      justify-content: space-between;
-      row-gap: 16px;
-    }
-
-    .color-section-divider {
-      width: auto;
-      height: 3px;
-      margin: 20px -4px;
-    }
-
-    .custom-color-section {
+    // Quiet, like the other secondary buttons, and only as wide as it needs to be
+    .color-done-button {
+      min-height: 44px;
+      margin-top: 28px;
+      padding: 0 20px 0 14px;
+      display: flex;
+      flex: none;
+      align-self: center;
       align-items: center;
-      gap: 16px;
+      gap: 8px;
+      background-color: $gray-2;
+      border: 1px solid $gray-4;
+      border-radius: 12px;
+      color: $light-elements;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
 
-      .color-card {
-        flex: none;
+      &:active {
+        background-color: $gray-4;
       }
 
-      .color-sliders {
-        flex: 1;
-        gap: 18px;
-
-        .color-slider {
-          width: 100%;
-          height: 14px;
-          border-radius: 7px;
-        }
+      .material-symbols-outlined {
+        font-size: 22px;
       }
+    }
+
+    .custom-color-section .color-sliders .color-slider {
+      height: 14px;
     }
   }
 }
