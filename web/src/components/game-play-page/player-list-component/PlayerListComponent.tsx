@@ -1,13 +1,8 @@
 import "./PlayerListComponent.scss";
 import clsx from "clsx";
-import React, { useLayoutEffect, useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useGame } from "@/GameContext";
-import { useToast } from "@/ToastContext";
-import { nextPlayerColor, type Scorecard } from "@/Game";
 import { totalScore } from "@/utils/Scores";
-import { autoScrollSpeed } from "@/utils/autoScroll";
-import { newId } from "@/utils/newId";
-import { SelectColorComponent } from "./SelectColorComponent/SelectColorComponent";
 
 /** The round passed in when the player list should show total scores instead of a round */
 const TOTAL_SCORES = -1;
@@ -17,13 +12,13 @@ function hiddenFromEveryone(hidden: boolean) {
   return hidden ? { tabIndex: -1, "aria-hidden": true } : {};
 }
 
-function roundLabel(round: number, editing: boolean): string {
-  if (editing) return "Edit Players";
+function roundLabel(round: number): string {
   if (round === TOTAL_SCORES) return "Total Scores";
   if (round === 0) return "Initial Score";
   return `Round ${round}`;
 }
 
+/** The players and their scores, for looking at and for picking who the next score is for */
 export function PlayerListComponent({
   round,
   selectedPlayerId,
@@ -33,9 +28,6 @@ export function PlayerListComponent({
   onHighlightPlayer,
   pinnedPlayerId,
   flashCounts,
-  editing,
-  onStartEditing,
-  onFinishEditing,
 }: {
   round: number;
   selectedPlayerId: string;
@@ -47,41 +39,50 @@ export function PlayerListComponent({
   /** The player whose line has been picked out on the plot by pressing them, if any */
   pinnedPlayerId: string;
   /**
-   * How many times each player's row has been told to flash. A row flashes when its count goes
+   * How many times each player's score has been told to bounce. A score bounces when its count goes
    * up, however many times that has already happened.
    */
   flashCounts: Record<string, number>;
-  /** Whether the players are being edited: renamed, reordered, recolored, added and deleted */
-  editing: boolean;
-  onStartEditing: () => void;
-  onFinishEditing: () => void;
 }) {
-  const { game, updateGame } = useGame();
-  const { showToast, dismissAll } = useToast();
-  // The player whose name field should be focused as soon as it appears (a just-added player)
-  const focusPlayerId = useRef("");
-  const addButtonRef = useRef<HTMLButtonElement>(null);
-  const [selectingColorId, setSelectingColorId] = useState("");
-  const [colorPickerPosition, setColorPickerPosition] = useState<DOMRect | null>(null);
-  const [dragId, setDragId] = useState("");
+  const { game } = useGame();
   const listRef = useRef<HTMLDivElement>(null);
-  // While dragging, positions are measured down the whole list, scrolled out of view or not: the
-  // pointer's Y plus how far the list has scrolled. Then scrolling the list under a pointer that's
-  // standing still moves the dragged player along with it.
-  const dragStartY = useRef(0);
-  const pointerY = useRef(0); // The latest position of the pointer on the screen, while dragging
-  const [dragDeltaY, setDragDeltaY] = useState(0);
-  const [playerSpacing, setPlayerSpacing] = useState(0);
   const playerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const playerPositions = useRef<Map<string, DOMRect>>(new Map());
 
   const showingRound = round !== TOTAL_SCORES;
 
-  // Keep the selected player in view as the keypad moves through the list
+  // Going from one round to another, the heading and the scores slide in from the side that the new
+  // round is on (the next round from the right, the one before from the left). Changing between a
+  // round and the total scores is not that, so they are left alone. It is worked out as the round
+  // changes (and not in an effect after it), so that they are there with the new round, as it appears.
+  const [shownRound, setShownRound] = useState(round);
+  const [roundChange, setRoundChange] = useState({ direction: "next", count: 0 });
+  if (shownRound !== round) {
+    setShownRound(round);
+    if (round !== TOTAL_SCORES && shownRound !== TOTAL_SCORES) {
+      setRoundChange((change) => ({
+        direction: round > shownRound ? "next" : "prev",
+        count: change.count + 1,
+      }));
+    }
+  }
+  // Each change is a new element, which is what starts its animation
+  const slideClass = roundChange.count > 0 ? `slide-from-${roundChange.direction}` : undefined;
+
+  // Keep the selected player in the middle of the list as the keypad moves through it, gliding
+  // there from the one before. Where there is no one before (the list has only just come up), or
+  // for somebody who would rather not have things move about, it is just there.
+  const previousSelectedId = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (editing || !showingRound) return;
-    playerRefs.current.get(selectedPlayerId)?.scrollIntoView?.({ block: "nearest" });
-  }, [selectedPlayerId, editing, showingRound]);
+    if (!showingRound) return;
+    const moved =
+      previousSelectedId.current !== undefined && previousSelectedId.current !== selectedPlayerId;
+    previousSelectedId.current = selectedPlayerId;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    playerRefs.current.get(selectedPlayerId)?.scrollIntoView?.({
+      block: "center",
+      behavior: moved && !reducedMotion ? "smooth" : "instant",
+    });
+  }, [selectedPlayerId, showingRound]);
 
   // Let the stylesheet know whether there is more of the list above or below what can be seen, so
   // that the list can fade out at an edge that has more beyond it, rather than being cut off. This
@@ -100,7 +101,7 @@ export function PlayerListComponent({
 
     update();
     list.addEventListener("scroll", update, { passive: true });
-    // The size changes with the window, and when the add player button comes and goes
+    // The size changes with the window
     const observer = new ResizeObserver(update);
     observer.observe(list);
 
@@ -110,208 +111,31 @@ export function PlayerListComponent({
     };
   }, [game.scorecards.length]); // And when there are more or fewer players to scroll through
 
-  // The drag effect below calls whichever version of `dragTo` was made by the latest render
-  const dragToRef = useRef<() => void>(() => {});
-
-  // While dragging a player: follow the pointer wherever it goes, scroll the list when it nears
-  // the top or bottom, don't let the user select text, and stop the drag on release
-  useEffect(() => {
-    if (dragId === "") return;
-
-    const stopDragging = () => setDragId("");
-    const onPointerMove = (e: PointerEvent) => {
-      pointerY.current = e.clientY;
-      dragToRef.current();
-    };
-    // Scrolling moves the list under the pointer, which can mean the player has to change places
-    const onScroll = () => dragToRef.current();
-    const list = listRef.current;
-
-    let frame = 0;
-    let previousTime: number | undefined;
-    let carry = 0; // The part of a pixel that was too small to scroll last frame
-    const autoScroll = (time: number) => {
-      if (list && previousTime !== undefined) {
-        const { top, bottom } = list.getBoundingClientRect();
-        const speed = autoScrollSpeed(pointerY.current, top, bottom);
-        carry = speed === 0 ? 0 : carry + (speed * (time - previousTime)) / 1000;
-        const pixels = Math.trunc(carry);
-        if (pixels !== 0) {
-          carry -= pixels;
-          list.scrollTop += pixels;
-        }
-      }
-      previousTime = time;
-      frame = requestAnimationFrame(autoScroll);
-    };
-    frame = requestAnimationFrame(autoScroll);
-
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", stopDragging);
-    window.addEventListener("pointercancel", stopDragging);
-    list?.addEventListener("scroll", onScroll);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      document.body.style.userSelect = "";
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", stopDragging);
-      window.removeEventListener("pointercancel", stopDragging);
-      list?.removeEventListener("scroll", onScroll);
-    };
-  }, [dragId]);
-
-  // FLIP - animate changes in the player order when reordering the player list
-  useLayoutEffect(() => {
-    if (dragId === "") return; // No FLIP if we're not actively dragging
-
-    playerRefs.current.forEach((player, id) => {
-      if (id === dragId) return; // Don't animate the currently dragged item
-
-      const oldRect = playerPositions.current.get(id);
-      if (!oldRect) return;
-
-      const deltaY = oldRect.top - player.getBoundingClientRect().top;
-
-      if (deltaY !== 0) {
-        // If there's been a change in position, translate it back to the old position...
-        player.style.transform = `translateY(${deltaY}px)`;
-        player.style.transition = "none";
-
-        // Then remove the translation and let the browser animate
-        requestAnimationFrame(() => {
-          player.style.transition = "transform 150ms ease";
-          player.style.removeProperty("transform");
-        });
-      }
-    });
-  }, [game.scorecards, dragId]);
-
-  function onColorClick(e: React.MouseEvent<HTMLDivElement>, id: string) {
-    if (editing) {
-      setSelectingColorId(id);
-      setColorPickerPosition(e.currentTarget.getBoundingClientRect());
-    }
-  }
-
-  function deletePlayer(card: Scorecard, index: number) {
-    updateGame({ type: "delete_player", playerId: card.id });
-    showToast({
-      message: (
-        <>
-          <span className="toast-dim">Deleted</span>{" "}
-          <span className="toast-subject">
-            <span className="toast-swatch" style={{ backgroundColor: card.color }} />
-            {card.playerName.trim() || "player"}
-          </span>
-        </>
-      ),
-      actionLabel: "Undo",
-      onAction: () => updateGame({ type: "restore_player", card, index }),
-    });
-  }
-
-  function addPlayer() {
-    const newPlayerId = newId();
-    updateGame({
-      type: "add_player",
-      newPlayerId,
-      newPlayerName: "Player " + (game.scorecards.length + 1),
-      newPlayerColor: nextPlayerColor(game),
-    });
-    focusPlayerId.current = newPlayerId; // Start editing the new player's name right away
-  }
-
-  // Measure the position of each player. Used for FLIP animations
-  function measurePlayerPositions() {
-    playerRefs.current.forEach((player, id) => {
-      playerPositions.current.set(id, player.getBoundingClientRect());
-    });
-  }
-
-  // We need to know what the player spacing is in order to know how far to drag before reordering the list
-  function measurePlayerSpacing() {
-    const players = Array.from(playerRefs.current.values());
-    if (players.length >= 2) {
-      const r1 = players[0]!.getBoundingClientRect();
-      const r2 = players[1]!.getBoundingClientRect();
-      setPlayerSpacing(r2.top - r1.top);
-    }
-  }
-
-  function startDragging(e: React.PointerEvent, id: string) {
-    playerRefs.current.get(id)!.style.removeProperty("transition");
-    measurePlayerSpacing();
-    measurePlayerPositions();
-    // A finger is tied to the handle it touched, and reordering moves that handle in the page, which
-    // ends the touch. The list stays put, so the drag is held there instead.
-    listRef.current?.setPointerCapture?.(e.pointerId);
-    pointerY.current = e.clientY;
-    dragStartY.current = e.clientY + (listRef.current?.scrollTop ?? 0);
-    setDragDeltaY(0);
-    setDragId(id);
-  }
-
-  // Called whenever the pointer moves or the list scrolls during a drag
-  function dragTo() {
-    if (dragId === "") return;
-
-    // Compute how far we've dragged and where the dragged item currently is in the list
-    const pointerInList = pointerY.current + (listRef.current?.scrollTop ?? 0);
-    const deltaY = pointerInList - dragStartY.current;
-    const index = game.scorecards.findIndex((card) => card.id === dragId);
-    const reorderDistance = (playerSpacing * 3) / 5;
-
-    // Figure out if we need to move the item's position
-    if (index > 0 && -deltaY > reorderDistance) {
-      measurePlayerPositions();
-      dragStartY.current -= playerSpacing;
-      updateGame({ type: "move_player", playerId: dragId, direction: "up" });
-    } else if (index < game.scorecards.length - 1 && deltaY > reorderDistance) {
-      measurePlayerPositions();
-      dragStartY.current += playerSpacing;
-      updateGame({ type: "move_player", playerId: dragId, direction: "down" });
-    }
-
-    // Need to recompute the delta here because the start Y may have been updated by a reorder
-    setDragDeltaY(pointerInList - dragStartY.current);
-  }
-
-  useEffect(() => {
-    dragToRef.current = dragTo;
-  });
-
-  // How far the dragged player at `index` is shifted. The first and last players can only be
-  // pulled a little past the ends of the list.
-  function dragOffset(index: number): number {
-    const overshoot = playerSpacing / 6;
-    const min = index === 0 ? -overshoot : -Infinity;
-    const max = index === game.scorecards.length - 1 ? overshoot : Infinity;
-    return Math.min(Math.max(dragDeltaY, min), max);
-  }
-
   return (
     <>
       <div className="round-buttons">
         <button
-          className={clsx({ hidden: !showingRound || editing })}
+          className={clsx({ hidden: !showingRound })}
           aria-label="Previous round"
           title="Previous round"
-          {...hiddenFromEveryone(!showingRound || editing)}
-          disabled={showingRound && !editing && round === 0} // The first round, with nothing before it
+          {...hiddenFromEveryone(!showingRound)}
+          disabled={showingRound && round === 0} // The first round, with nothing before it
           onClick={() => onPrevRound()}
         >
           <span className="material-symbols-outlined" aria-hidden="true">
             chevron_left
           </span>
         </button>
-        <div className="round-label">{roundLabel(round, editing)}</div>
+        <div className="round-label">
+          <span key={roundChange.count} className={slideClass}>
+            {roundLabel(round)}
+          </span>
+        </div>
         <button
-          className={clsx({ hidden: !showingRound || editing })}
+          className={clsx({ hidden: !showingRound })}
           aria-label="Next round"
           title="Next round"
-          {...hiddenFromEveryone(!showingRound || editing)}
+          {...hiddenFromEveryone(!showingRound)}
           onClick={() => onNextRound()}
         >
           <span className="material-symbols-outlined" aria-hidden="true">
@@ -319,137 +143,50 @@ export function PlayerListComponent({
           </span>
         </button>
       </div>
-      <div className={clsx("player-list", { editing })} ref={listRef}>
+      <div className="player-list" ref={listRef}>
         {game.scorecards.length === 0 && (
           <div className="player-list-empty">
             <div className="player-list-empty-title">No players yet</div>
             <div className="player-list-empty-hint">
-              Press{" "}
-              <span className="player-list-empty-button">
-                {editing ? "Add player" : "Edit players"}
-              </span>{" "}
-              {editing ? "to add one" : "to add some"}
+              Press <span className="player-list-empty-button">Edit players</span> to add some
             </div>
           </div>
         )}
-        {game.scorecards.map((card, index) => (
-          <React.Fragment key={card.id}>
+        {game.scorecards.map((card) => (
+          <div
+            key={card.id}
+            className={clsx("player", {
+              selected: selectedPlayerId === card.id && showingRound,
+              pinned: pinnedPlayerId === card.id,
+            })}
+            onClick={() => onSelectPlayer(card.id)}
+            // Only for a real mouse. A touchscreen pretends to hover over what was tapped, and
+            // leaves it that way, which would make it impossible to let go of a pinned player.
+            onPointerEnter={(e) => e.pointerType === "mouse" && onHighlightPlayer(card.id)}
+            onPointerLeave={(e) => e.pointerType === "mouse" && onHighlightPlayer("")}
+            ref={(el) => {
+              if (el) playerRefs.current.set(card.id, el);
+              else playerRefs.current.delete(card.id);
+            }}
+          >
+            <div className="spacer-left" />
+            <div className="player-color" style={{ backgroundColor: card.color }} />
+            <div className="player-name">{card.playerName}</div>
             <div
-              className={clsx("player", {
-                selected: selectedPlayerId === card.id && showingRound && !editing,
-                editing: editing,
-                dragging: dragId === card.id,
-                pinned: pinnedPlayerId === card.id,
-                // Two names that take turns, as it is a change of animation that restarts one
+              // Bounces when the score has just been updated. Two names that take turns, as it is a
+              // change of animation that restarts one.
+              className={clsx("score", {
                 "flash-a": (flashCounts[card.id] ?? 0) % 2 === 1,
                 "flash-b": (flashCounts[card.id] ?? 0) > 0 && (flashCounts[card.id] ?? 0) % 2 === 0,
               })}
-              onClick={() => onSelectPlayer(card.id)}
-              // Only for a real mouse. A touchscreen pretends to hover over what was tapped, and
-              // leaves it that way, which would make it impossible to let go of a pinned player.
-              onPointerEnter={(e) => e.pointerType === "mouse" && onHighlightPlayer(card.id)}
-              onPointerLeave={(e) => e.pointerType === "mouse" && onHighlightPlayer("")}
-              ref={(el) => {
-                if (el) playerRefs.current.set(card.id, el);
-                else playerRefs.current.delete(card.id);
-              }}
-              style={card.id === dragId ? { transform: `translateY(${dragOffset(index)}px)` } : {}}
             >
-              <div className="spacer-left" />
-              <div
-                className={clsx("drag-handle", { hidden: !editing })}
-                onPointerDown={(e) => startDragging(e, card.id)}
-              >
-                <span className="material-symbols-outlined">drag_handle</span>
-              </div>
-              <div
-                className="player-color"
-                style={{ backgroundColor: card.color }}
-                onClick={(e) => onColorClick(e, card.id)}
-              />
-              {editing ? (
-                <input
-                  className="player-name-input"
-                  ref={(el) => {
-                    if (el && focusPlayerId.current === card.id) {
-                      focusPlayerId.current = "";
-                      el.focus();
-                      el.select();
-                    }
-                  }}
-                  value={card.playerName}
-                  onChange={(e) =>
-                    updateGame({
-                      type: "change_player_name",
-                      playerId: card.id,
-                      newPlayerName: e.target.value,
-                    })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    // Done with this name, so on to the button for adding the next player, which
-                    // Enter will then press. The focus is moved a moment later, as this Enter is
-                    // still on its way, and would otherwise reach the button and press it already.
-                    e.currentTarget.blur();
-                    setTimeout(() => addButtonRef.current?.focus(), 0);
-                  }}
-                />
-              ) : (
-                <div className="player-name">{card.playerName}</div>
-              )}
-              <div className={clsx("score", { hidden: editing })}>
+              <span key={roundChange.count} className={slideClass}>
                 {showingRound ? (card.scores[round] ?? 0) : totalScore(card)}
-              </div>
-              <div
-                className={clsx("delete-button", { hidden: !editing })}
-                onClick={() => deletePlayer(card, index)}
-              >
-                <span className="material-symbols-outlined">delete</span>
-              </div>
-              <div className="spacer-right" />
+              </span>
             </div>
-            {selectingColorId === card.id && colorPickerPosition && (
-              <SelectColorComponent
-                currentColor={card.color}
-                position={colorPickerPosition}
-                playerId={card.id}
-                onClose={() => setSelectingColorId("")}
-              />
-            )}
-          </React.Fragment>
+            <div className="spacer-right" />
+          </div>
         ))}
-      </div>
-      <div className="list-footer">
-        {editing ? (
-          <>
-            <button className="add-player-button" ref={addButtonRef} onClick={addPlayer}>
-              <span className="material-symbols-outlined" aria-hidden="true">
-                add
-              </span>
-              Add player
-            </button>
-            <button
-              className="done-button"
-              onClick={() => {
-                // Done means the deletions were meant, so there is no more need to offer to undo them
-                dismissAll();
-                onFinishEditing();
-              }}
-            >
-              <span className="material-symbols-outlined" aria-hidden="true">
-                check
-              </span>
-              Done
-            </button>
-          </>
-        ) : (
-          <button className="edit-players-button" onClick={onStartEditing}>
-            <span className="material-symbols-outlined" aria-hidden="true">
-              edit
-            </span>
-            Edit players
-          </button>
-        )}
       </div>
     </>
   );

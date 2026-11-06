@@ -188,15 +188,6 @@ $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
     text-transform: uppercase;
   }
 
-  .continue-game-name {
-    max-width: 100%;
-    overflow: hidden;
-    font-size: 17pt;
-    font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .continue-game-details {
     font-size: 11pt;
     font-weight: 500;
@@ -214,8 +205,8 @@ $accent: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
 // away off the left of the screen, or in from it. The card is only on one of the two pages, so it
 // only ever has one of these.
 // Going to the game is quicker than coming back to the title, as it is the one that is in the way
-$to-title-time: 450ms;
-$to-game-time: 250ms;
+$to-title-time: 350ms;
+$to-game-time: 180ms;
 // The lines go sooner than the game page arrives, so that they are not seen through it
 $lines-out-time: 120ms;
 

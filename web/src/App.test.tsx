@@ -1,10 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "@/App";
 import { defaultColors } from "@/config";
 import { createDemoGame } from "@/demoGame";
-import { DEFAULT_GAME_NAME } from "@/Game";
 import { lastRound, partialScores, totalScore, totalScoreRange } from "@/utils/Scores";
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -32,14 +31,14 @@ async function addSecondPlayer(user: User, container: HTMLElement) {
 describe("demo game", () => {
   it("is only loaded when the URL asks for it", () => {
     renderApp("/");
-    expect(screen.queryByText("Friday Night Rummy")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Continue Game/ })).toBeNull();
   });
 
   it("loads with ?demo, and plays from its latest round", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/?demo");
 
-    expect(screen.getByText("Friday Night Rummy")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Continue Game/ })).toBeTruthy();
     await user.click(screen.getByText("Continue Game"));
 
     const demo = createDemoGame();
@@ -112,7 +111,7 @@ describe("demo game", () => {
 });
 
 describe("title page", () => {
-  it("starts a new game with one player, in edit mode", async () => {
+  it("starts a new game with one player, with the window for editing the players open", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/");
 
@@ -121,31 +120,7 @@ describe("title page", () => {
     expect(container.querySelectorAll(".player")).toHaveLength(1);
     expect(container.querySelector<HTMLInputElement>(".player-name-input")!.value).toBe("Player 1");
     expect(screen.getByText("Edit Players")).toBeTruthy();
-    expect(container.querySelector(".player.editing")).not.toBeNull();
-  });
-
-  it("starts a new game with the game name selected", async () => {
-    const user = userEvent.setup();
-    const { container } = renderApp("/");
-
-    await user.click(screen.getByText("Start New Game"));
-
-    const input = container.querySelector<HTMLInputElement>(".game-name-input")!;
-    expect(document.activeElement).toBe(input);
-    expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
-
-    // Typing replaces the whole name
-    await user.keyboard("Rummy");
-    expect(input.value).toBe("Rummy");
-  });
-
-  it("does not select the game name when entering edit mode later", async () => {
-    const user = userEvent.setup();
-    const { container } = renderApp();
-
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
-
-    expect(document.activeElement).not.toBe(container.querySelector(".game-name-input"));
+    expect(container.querySelector(".edit-players-dialog")).not.toBeNull();
   });
 
   it("starts a new game even after playing one", async () => {
@@ -176,7 +151,6 @@ describe("title page", () => {
     expect(screen.getByRole("button", { name: "Start New Game" }).classList).toContain("primary");
     const continueButton = screen.getByRole("button", { name: /Continue Game/ });
     expect(continueButton.classList).not.toContain("primary");
-    expect(continueButton.textContent).toContain("Friday Night Rummy");
     expect(continueButton.textContent).toContain(`${createDemoGame().scorecards.length} players`);
     expect(demo.container.querySelectorAll(".score-lines-backdrop polyline")).toHaveLength(5);
   });
@@ -190,15 +164,14 @@ describe("title page", () => {
     await user.click(screen.getByText("Continue Game"));
 
     expect(container.querySelector(".game-play-background")).not.toBeNull();
-    expect(container.querySelector(".player.editing")).toBeNull();
+    expect(container.querySelector(".edit-players-dialog")).toBeNull();
     expect(screen.queryByText("Edit Players")).toBeNull();
   });
 });
 
 describe("game play page", () => {
-  it("renders the player and the game name", () => {
+  it("renders the player", () => {
     renderApp();
-    expect(screen.getByText("New Game (click to edit)")).toBeTruthy();
     expect(screen.getByText("Player 1")).toBeTruthy();
   });
 
@@ -213,7 +186,7 @@ describe("game play page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
 
     const input = document.activeElement as HTMLInputElement;
@@ -221,49 +194,28 @@ describe("game play page", () => {
     expect(input.value).toBe("Player 2");
   });
 
-  it("shows player names as plain text normally and as text boxes in edit mode", async () => {
+  it("shows player names as plain text in the list, and as text boxes in the window for editing them", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
     expect(container.querySelector(".player-name-input")).toBeNull();
 
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     expect(container.querySelector<HTMLInputElement>(".player-name-input")!.value).toBe("Player 1");
-    // The game name is not part of edit mode
-    expect(container.querySelector(".game-name-input")).toBeNull();
 
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".done-button")!);
     expect(container.querySelector(".player-name-input")).toBeNull();
   });
 
-  it("renames the game by pressing its name, whether or not players are being edited", async () => {
+  it("renames players from their text boxes", async () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".game-name-label")!);
-    const input = container.querySelector<HTMLInputElement>(".game-name-input")!;
-    expect(input.value).toBe("New Game (click to edit)");
-    expect(container.querySelector(".player-name-input")).toBeNull(); // Not editing the players
-
-    await user.clear(input);
-    await user.type(input, "Rummy{Enter}");
-    expect(container.querySelector(".game-name-input")).toBeNull();
-    expect(screen.getByText("Rummy")).toBeTruthy();
-  });
-
-  it("renames the game and players from their text boxes", async () => {
-    const user = userEvent.setup();
-    const { container } = renderApp();
-
-    await user.click(container.querySelector(".game-name-label")!);
-    await user.clear(container.querySelector(".game-name-input")!);
-    await user.type(container.querySelector(".game-name-input")!, "Rummy{Enter}");
     await user.click(container.querySelector(".edit-players-button")!);
     await user.clear(container.querySelector(".player-name-input")!);
     await user.type(container.querySelector(".player-name-input")!, "Ada{Enter}");
     await user.click(container.querySelector(".done-button")!);
 
-    expect(screen.getByText("Rummy")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
   });
 
@@ -394,6 +346,47 @@ describe("game play page", () => {
       expect(container.querySelector(".score-value")!.textContent).toBe("55");
     });
 
+    it("shows a key of the keypad as pressed while its key on the keyboard is held down", () => {
+      vi.useFakeTimers();
+      try {
+        const { container } = renderApp();
+        const pressed = () =>
+          Array.from(container.querySelectorAll(".key.pressed")).map((el) => el.className);
+
+        fireEvent.keyDown(window, { key: "5" });
+        expect(key(container, "5").classList.contains("pressed")).toBe(true);
+        fireEvent.keyUp(window, { key: "5" }); // A quick tap: it stays pressed a moment longer
+        expect(key(container, "5").classList.contains("pressed")).toBe(true);
+        act(() => vi.advanceTimersByTime(200));
+        expect(pressed()).toEqual([]);
+
+        for (const [pressedKey, keypadClass] of [
+          ["-", "key-negate"],
+          ["Backspace", "key-backspace"],
+          ["Enter", "key-enter"],
+          [".", "key-point"],
+        ] as const) {
+          fireEvent.keyDown(window, { key: pressedKey });
+          expect(container.querySelector(`.${keypadClass}`)!.classList.contains("pressed")).toBe(
+            true,
+          );
+          fireEvent.keyUp(window, { key: pressedKey });
+          act(() => vi.advanceTimersByTime(200));
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not show a key as pressed for a key of the keyboard that has no key on the keypad", () => {
+      const { container } = renderApp();
+
+      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(window, { key: "x" });
+
+      expect(container.querySelectorAll(".key.pressed")).toHaveLength(0);
+    });
+
     it("only ever shows one key as pressed", () => {
       const { container } = renderApp();
 
@@ -430,13 +423,12 @@ describe("game play page", () => {
       const user = userEvent.setup();
       const { container } = renderApp();
       await user.click(container.querySelector(".edit-players-button")!);
-      const list = container.querySelector(".player-list")!;
-      const footer = container.querySelector(".list-footer")!;
+      const list = container.querySelector(".edit-players-list")!;
+      const footer = container.querySelector(".edit-players-footer")!;
 
       expect(footer.querySelector(".add-player-button")).not.toBeNull();
       expect(list.contains(footer)).toBe(false);
       expect(footer.parentElement).toBe(list.parentElement);
-      expect(container.querySelector(".round-buttons")!.parentElement).toBe(list.parentElement);
     });
 
     it("scrolls the next player into view when the keypad moves on to them", async () => {
@@ -450,7 +442,9 @@ describe("game play page", () => {
       const rows = container.querySelectorAll(".player");
       const lastCall = scrollIntoView.mock.contexts.length - 1;
       expect(scrollIntoView.mock.contexts[lastCall]).toBe(rows[1]);
-      expect(scrollIntoView.mock.calls[lastCall]).toEqual([{ block: "nearest" }]);
+      expect(scrollIntoView.mock.calls[lastCall]).toEqual([
+        { block: "center", behavior: "smooth" },
+      ]);
     });
 
     it("scrolls to the player entered on, after a score moves the selection along", async () => {
@@ -469,7 +463,7 @@ describe("game play page", () => {
     it("doesn't scroll around in edit mode", async () => {
       const user = userEvent.setup();
       const { container } = renderApp();
-      await user.click(container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(container.querySelector(".edit-players-button")!);
       const scrollIntoView = spyOnScrollIntoView();
 
       fireEvent.keyDown(window, { key: "ArrowDown" });
@@ -507,9 +501,9 @@ describe("game play page", () => {
       function openLongList() {
         const view = renderApp("/?demo");
         fireEvent.click(screen.getByText("Continue Game"));
-        fireEvent.click(view.container.querySelector(".done-button, .edit-players-button")!);
+        fireEvent.click(view.container.querySelector(".edit-players-button")!);
 
-        const list = view.container.querySelector<HTMLElement>(".player-list")!;
+        const list = view.container.querySelector<HTMLElement>(".edit-players-list")!;
         list.getBoundingClientRect = () => rect(listTop, listBottom - listTop);
         // jsdom doesn't scroll, so keep track of how far the list has been scrolled
         Object.defineProperty(list, "scrollTop", {
@@ -519,7 +513,7 @@ describe("game play page", () => {
             list.dispatchEvent(new Event("scroll"));
           },
         });
-        const rows = () => Array.from(view.container.querySelectorAll<HTMLElement>(".player"));
+        const rows = () => Array.from(view.container.querySelectorAll<HTMLElement>(".edit-player"));
         for (const row of rows()) {
           row.getBoundingClientRect = () => rect(rows().indexOf(row) * rowHeight, rowHeight - 4);
         }
@@ -661,8 +655,8 @@ describe("game play page", () => {
       async function openPickerWithSwatchAt(y: number) {
         const user = userEvent.setup();
         const view = renderApp();
-        await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
-        const swatch = view.container.querySelector<HTMLElement>(".player-color")!;
+        await user.click(view.container.querySelector(".edit-players-button")!);
+        const swatch = view.container.querySelector<HTMLElement>(".edit-player .player-color")!;
         swatch.getBoundingClientRect = () =>
           ({
             x: 40,
@@ -682,7 +676,7 @@ describe("game play page", () => {
         Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
       });
 
-      it("stays in edit mode while choosing a color and when closing the picker", async () => {
+      it("keeps the window open while choosing a color and when closing the picker", async () => {
         const user = userEvent.setup();
         const picker = await openPickerWithSwatchAt(300);
         await user.click(picker.querySelector(".color-card")!);
@@ -691,14 +685,25 @@ describe("game play page", () => {
         expect(document.querySelector(".done-button")).not.toBeNull();
       });
 
+      it("can be closed with its own Done button, which the phone layout shows", async () => {
+        const user = userEvent.setup();
+        await openPickerWithSwatchAt(300);
+        const background = document.querySelector(".color-select-background")!;
+
+        await user.click(screen.getByRole("button", { name: "Close color picker" }));
+        // It fades out first, and is taken away once that is over, which jsdom has no way to say
+        expect(background.classList).toContain("closing");
+        expect(document.querySelector(".edit-players-dialog")).not.toBeNull(); // Only the picker
+      });
+
       it("sits next to the color it is for", async () => {
         const picker = await openPickerWithSwatchAt(300);
-        expect(picker.style.top).toBe("265px");
+        expect(picker.style.top).toBe("185px"); // The middle of the 40 high color, 320, less half of 270
       });
 
       it("stays on the screen when the color is near the bottom", async () => {
         const picker = await openPickerWithSwatchAt(780);
-        expect(picker.style.top).toBe("686px"); // 800 high, minus the picker's 102 and a 12 margin
+        expect(picker.style.top).toBe("518px"); // 800 high, minus the picker's 270 and a 12 margin
       });
 
       it("stays on the screen when the color is near the top", async () => {
@@ -712,7 +717,7 @@ describe("game play page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".player-name-input")!);
     await user.keyboard("7{Enter}");
 
@@ -862,16 +867,16 @@ describe("game play page", () => {
 
       it("says how", async () => {
         await playTwoRounds();
-        expect(screen.getByText("Tap a score to edit it")).toBeTruthy();
+        expect(screen.getByText("Click a score to edit it")).toBeTruthy();
       });
     });
 
     it("says so when there are no players", async () => {
       const user = userEvent.setup();
       const { container } = renderApp();
-      await user.click(container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(container.querySelector(".edit-players-button")!);
       await user.click(container.querySelector(".delete-button")!);
-      await user.click(container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(container.querySelector(".done-button")!);
       await user.click(container.querySelectorAll(".buttons-section button")[2]!);
 
       // The player list says something of its own, so look at the table's
@@ -1147,11 +1152,11 @@ describe("game play page", () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     for (const button of Array.from(container.querySelectorAll(".delete-button"))) {
       await user.click(button);
     }
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".done-button")!);
     await user.click(container.querySelectorAll(".buttons-section button")[1]!);
 
     expect(container.querySelector(".plot-scores-content")).not.toBeNull();
@@ -1182,17 +1187,12 @@ describe("saving the game", () => {
   it("brings the game back after a reload, and Continue Game picks it up", async () => {
     const user = userEvent.setup();
     const first = renderApp("/play/");
-    await user.click(first.container.querySelector(".game-name-label")!);
-    await user.clear(first.container.querySelector(".game-name-input")!);
-    await user.type(first.container.querySelector(".game-name-input")!, "Rummy");
-    await user.keyboard("{Enter}");
     fireEvent.keyDown(window, { key: "9" });
     fireEvent.keyDown(window, { key: "Enter" });
     first.unmount(); // Closing the page
 
     const second = renderApp("/");
     expect(continueButton().hasAttribute("disabled")).toBe(false);
-    expect(screen.getByText("Rummy")).toBeTruthy();
     await user.click(screen.getByText("Continue Game"));
     expect(shownScores(second.container)).toEqual(["9"]);
   });
@@ -1207,7 +1207,6 @@ describe("saving the game", () => {
     const second = renderApp("/");
     await user.click(screen.getByText("Start New Game"));
 
-    expect(savedGame().game.name).toBe(DEFAULT_GAME_NAME);
     expect(savedGame().game.scorecards[0].scores).toEqual([0]);
     expect(second.container.querySelectorAll(".player")).toHaveLength(1);
   });
@@ -1234,14 +1233,15 @@ describe("saving the game", () => {
       const before = localStorage.getItem("scoreplot.game");
 
       const { container } = renderApp("/?demo");
-      expect(screen.getByText("Friday Night Rummy")).toBeTruthy();
-      expect(screen.queryByText("My Real Game")).toBeNull();
+      expect(screen.getByRole("button", { name: /Continue Game/ }).textContent).toContain(
+        `${createDemoGame().scorecards.length} players`,
+      );
 
       // Play: the "?demo" has gone from the address by now, but it is still the demo game
       await user.click(screen.getByText("Continue Game"));
       fireEvent.keyDown(window, { key: "4" });
       fireEvent.keyDown(window, { key: "Enter" });
-      await user.click(container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(container.querySelector(".edit-players-button")!);
       await user.click(container.querySelector(".add-player-button")!);
 
       expect(localStorage.getItem("scoreplot.game")).toBe(before);
@@ -1275,15 +1275,15 @@ describe("undoing", () => {
     async function threePlayers() {
       const user = userEvent.setup();
       const view = renderApp("/play/");
-      await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(view.container.querySelector(".edit-players-button")!);
       await user.click(view.container.querySelector(".add-player-button")!);
       await user.click(view.container.querySelector(".add-player-button")!);
-      await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(view.container.querySelector(".done-button")!);
       for (const score of ["4", "5", "6"]) {
         fireEvent.keyDown(window, { key: score });
         fireEvent.keyDown(window, { key: "Enter" });
       }
-      await user.click(view.container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(view.container.querySelector(".edit-players-button")!);
       return { user, ...view };
     }
 
@@ -1309,7 +1309,7 @@ describe("undoing", () => {
       expect(
         container.querySelectorAll<HTMLElement>(".player-color")[1]!.style.backgroundColor,
       ).toBe(colorBefore);
-      await user.click(container.querySelector(".done-button, .edit-players-button")!);
+      await user.click(container.querySelector(".edit-players-button")!);
       expect(shownScores(container)).toEqual(["4", "5", "6"]);
       expect(toastMessages()).toEqual([]);
     });
@@ -1343,88 +1343,328 @@ describe("undoing", () => {
   });
 
   describe("starting a new game", () => {
-    /** The title page, after playing a game called Rummy in which Player 1 scored 8 */
-    async function afterPlayingRummy() {
+    it("does not offer to undo it, even over a game that was played", async () => {
       const user = userEvent.setup();
       const first = renderApp("/play/");
-      await user.click(first.container.querySelector(".game-name-label")!);
-      await user.clear(first.container.querySelector(".game-name-input")!);
-      await user.type(first.container.querySelector(".game-name-input")!, "Rummy");
-      await user.keyboard("{Enter}");
       fireEvent.keyDown(window, { key: "8" });
       fireEvent.keyDown(window, { key: "Enter" });
       first.unmount();
-      return { user, ...renderApp("/") };
-    }
 
-    it("says so, with a way to undo it, over the game that was started", async () => {
-      const { user, container } = await afterPlayingRummy();
-
+      const { container } = renderApp("/");
       await user.click(screen.getByText("Start New Game"));
 
-      expect(toastMessages()).toEqual(["Started a new game"]);
+      expect(toastMessages()).toEqual([]);
       expect(container.querySelector(".game-play-background")).not.toBeNull();
-      expect(container.querySelectorAll(".player")).toHaveLength(1);
       expect(shownScores(container)).toEqual(["0"]);
     });
 
-    it("brings back the game that was there before", async () => {
-      const { user, container } = await afterPlayingRummy();
-      const savedName = () => JSON.parse(localStorage.getItem("scoreplot.game")!).game.name;
-
-      await user.click(screen.getByText("Start New Game"));
-      expect(savedName()).toBe(DEFAULT_GAME_NAME);
-      await user.click(screen.getByRole("button", { name: "Undo" }));
-
-      expect(savedName()).toBe("Rummy");
-      await user.click(container.querySelector(".done-button, .edit-players-button")!); // Out of edit mode, as new games start in it
-      expect(shownScores(container)).toEqual(["8"]);
-      expect(container.querySelector(".game-name-label")!.textContent).toBe("Rummy");
-    });
-
-    it("does not bother when there was nothing to lose", async () => {
+    it("selects the first player's name in the window that opens, ready to be typed over", async () => {
       const user = userEvent.setup();
       renderApp("/");
+
       await user.click(screen.getByText("Start New Game"));
-      expect(toastMessages()).toEqual([]);
+
+      const input = document.querySelector<HTMLInputElement>(".player-name-input")!;
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
+      await user.keyboard("Ada");
+      expect(input.value).toBe("Ada");
     });
 
-    it("does not bother when the game had not been touched", async () => {
+    it("selects a name that is pressed, ready to be typed over", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/play/");
+      await user.click(container.querySelector(".edit-players-button")!);
+      const input = container.querySelector<HTMLInputElement>(".player-name-input")!;
+
+      await user.click(input);
+
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
+    });
+
+    it("does not select a name that is tapped, as that brings up the phone's menu for a selection", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/play/");
+      await user.click(container.querySelector(".edit-players-button")!);
+      const input = container.querySelector<HTMLInputElement>(".player-name-input")!;
+
+      await user.pointer({ keys: "[TouchA]", target: input });
+
+      expect(document.activeElement).toBe(input);
+      expect(input.selectionStart).toBe(input.selectionEnd);
+    });
+
+    it("does not select a name that is tapped while another name has the focus", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/play/");
+      await user.click(container.querySelector(".edit-players-button")!);
+      await user.click(container.querySelector(".add-player-button")!); // The new name has the focus
+      const [first, second] = Array.from(
+        container.querySelectorAll<HTMLInputElement>(".player-name-input"),
+      );
+
+      await user.pointer({ keys: "[TouchA]", target: first! });
+      expect(document.activeElement).toBe(first);
+      expect(first!.selectionStart).toBe(first!.selectionEnd);
+
+      await user.pointer({ keys: "[TouchA]", target: second! });
+      expect(document.activeElement).toBe(second);
+      expect(second!.selectionStart).toBe(second!.selectionEnd);
+    });
+
+    it("selects a name for the new game only, and not when the window is opened again", async () => {
       const user = userEvent.setup();
       const { container } = renderApp("/");
-      await user.click(screen.getByText("Start New Game")); // A game, but a blank one
-      await user.click(container.querySelector(".button-home")!);
       await user.click(screen.getByText("Start New Game"));
-      expect(toastMessages()).toEqual([]);
+      expect(document.activeElement).toBe(container.querySelector(".player-name-input"));
+
+      await user.click(container.querySelector(".done-button")!);
+      await user.click(container.querySelector(".edit-players-button")!);
+
+      expect(document.activeElement).toBe(container.querySelector(".edit-players-dialog"));
+    });
+
+    it("does not select a name when the window is opened with the button", async () => {
+      const user = userEvent.setup();
+      const { container } = renderApp("/play/");
+
+      await user.click(container.querySelector(".edit-players-button")!);
+
+      expect(document.activeElement).toBe(container.querySelector(".edit-players-dialog"));
     });
   });
 });
 
 describe("pressing a toast while editing", () => {
-  it("does not leave edit mode, so that you can go on editing after an Undo", async () => {
+  it("does not close the window for editing, so that you can go on editing after an Undo", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
 
     await user.click(container.querySelectorAll(".delete-button")[1]!);
     expect(container.querySelector(".toast")).not.toBeNull();
     await user.click(screen.getByRole("button", { name: "Undo" }));
 
-    expect(container.querySelectorAll(".player.editing")).toHaveLength(2);
+    expect(container.querySelectorAll(".edit-player")).toHaveLength(2);
     expect(container.querySelector(".add-player-button")).not.toBeNull();
   });
 
-  it("still leaves edit mode for a press anywhere else", async () => {
+  it("does not close the window for a press on the page behind it", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
     await user.click(container.querySelectorAll(".delete-button")[1]!);
 
-    await user.click(container.querySelector(".content-section")!);
+    await user.click(container.querySelector(".edit-players-backdrop")!);
 
-    expect(container.querySelector(".player.editing")).toBeNull();
+    expect(container.querySelector(".edit-players-dialog")).not.toBeNull();
+  });
+});
+
+describe("closing the window for editing players", () => {
+  it("closes with Escape", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+
+    await user.keyboard("{Escape}");
+
+    expect(container.querySelector(".edit-players-dialog")).toBeNull();
+  });
+
+  it("closes with Done", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+
+    await user.click(container.querySelector(".done-button")!);
+
+    expect(container.querySelector(".edit-players-dialog")).toBeNull();
+  });
+});
+
+describe("the window for editing players on a touch screen", () => {
+  const originalMatchMedia = window.matchMedia;
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("pointer: coarse"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  const nameBoxes = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll<HTMLInputElement>(".player-name-input"));
+
+  it("puts the cursor in a name as it opens, so that the keyboard is up", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+
+    await user.click(container.querySelector(".edit-players-button")!);
+
+    const [box] = nameBoxes(container);
+    expect(document.activeElement).toBe(box);
+    expect(box!.selectionStart).toBe(box!.selectionEnd); // Opened by a tap, so nothing is selected
+  });
+
+  it("keeps the cursor in the name when something else in the window is pressed", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+
+    const title = container.querySelector(".edit-players-title")!;
+    const notCancelled = fireEvent.mouseDown(title); // False when the press is stopped taking the focus
+
+    expect(notCancelled).toBe(false);
+    expect(document.activeElement).toBe(nameBoxes(container)[0]);
+  });
+
+  it("keeps the cursor in the name when the page behind the window is pressed", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+
+    const notCancelled = fireEvent.mouseDown(container.querySelector(".edit-players-backdrop")!);
+
+    expect(notCancelled).toBe(false);
+    expect(document.activeElement).toBe(nameBoxes(container)[0]);
+  });
+
+  it("goes on to the next name with Enter, rather than putting the keyboard away", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+    await user.click(container.querySelector(".add-player-button")!);
+    const [first, second] = nameBoxes(container);
+    first!.focus();
+
+    await user.keyboard("{Enter}");
+
+    expect(document.activeElement).toBe(second);
+  });
+
+  it("puts the cursor back in a name after the one that had it is deleted", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(container.querySelector(".edit-players-button")!);
+    await user.click(container.querySelector(".add-player-button")!); // The new name has the focus
+
+    await user.click(container.querySelectorAll(".delete-button")[1]!);
+
+    await waitFor(() => expect(document.activeElement).toBe(nameBoxes(container)[0]));
+  });
+});
+
+describe("the tabs on a screen that is taller than it is wide", () => {
+  const originalMatchMedia = window.matchMedia;
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("max-aspect-ratio"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("has no button for expanding the player list", () => {
+    renderApp("/play/");
+    expect(screen.queryByRole("button", { name: /player list/i })).toBeNull();
+  });
+
+  it("expands the list, and drops the tab, when the tab that is showing is pressed", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    const keypad = screen.getByRole("tab", { name: "Keypad" });
+    expect(keypad.getAttribute("aria-selected")).toBe("true");
+
+    await user.click(keypad);
+
+    expect(container.querySelector(".list-expanded")).not.toBeNull();
+    expect(keypad.getAttribute("aria-selected")).toBe("false");
+    expect(
+      screen.getAllByRole("tab").every((tab) => tab.getAttribute("aria-selected") === "false"),
+    ).toBe(true);
+  });
+
+  it("shows the total scores in the list on its own, as it does after the plot or the table", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    const heading = () => container.querySelector(".round-label")!.textContent;
+    expect(heading()).toMatch(/^Round /);
+
+    await user.click(screen.getByRole("tab", { name: "Keypad" })); // Pressed while showing: none selected
+
+    expect(heading()).toBe("Total Scores");
+
+    await user.click(screen.getByRole("tab", { name: "Keypad" }));
+
+    expect(heading()).toMatch(/^Round /);
+  });
+
+  it("does not take scores from the keyboard while the list is on its own", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(screen.getByRole("tab", { name: "Keypad" }));
+
+    fireEvent.keyDown(window, { key: "7" });
+
+    expect(container.querySelector(".score-value")!.textContent).toBe("0");
+  });
+
+  it("brings the tab back, and shrinks the list, when a tab is pressed after that", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    await user.click(screen.getByRole("tab", { name: "Keypad" }));
+
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+
+    expect(container.querySelector(".list-expanded")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Plot" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("does the same for the plot and the table", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    for (const name of ["Plot", "Table"]) {
+      await user.click(screen.getByRole("tab", { name }));
+      expect(container.querySelector(".list-expanded")).toBeNull();
+      await user.click(screen.getByRole("tab", { name }));
+      expect(container.querySelector(".list-expanded")).not.toBeNull();
+    }
+  });
+
+  it("gives the table the room that the player list would have had", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+    expect(container.querySelector(".table-showing")).toBeNull();
+
+    await user.click(screen.getByRole("tab", { name: "Table" }));
+    expect(container.querySelector(".table-showing")).not.toBeNull();
+
+    await user.click(screen.getByRole("tab", { name: "Plot" }));
+    expect(container.querySelector(".table-showing")).toBeNull();
+  });
+});
+
+describe("pressing the tab that is showing on a wide screen", () => {
+  it("does nothing, as the list is beside the panel already", async () => {
+    const user = userEvent.setup();
+    const { container } = renderApp("/play/");
+
+    await user.click(screen.getByRole("tab", { name: "Keypad" }));
+
+    expect(container.querySelector(".list-expanded")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Keypad" }).getAttribute("aria-selected")).toBe("true");
   });
 });
 
@@ -1473,10 +1713,10 @@ describe("keypad caption", () => {
   it("follows a player being renamed", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.clear(container.querySelector(".player-name-input")!);
     await user.type(container.querySelector(".player-name-input")!, "Ada");
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".done-button")!);
 
     expect(caption(container)).toBe("Ada · Round 1");
   });
@@ -1484,37 +1724,39 @@ describe("keypad caption", () => {
   it("copes with a player whose name has been cleared", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.clear(container.querySelector(".player-name-input")!);
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".done-button")!);
 
     expect(caption(container)).toBe("Player · Round 1");
   });
 
-  it("says what to do when the player list is empty, in and out of edit mode", async () => {
+  it("says what to do when there are no players, in the list and in the window for editing them", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
     await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".delete-button")!);
 
-    expect(screen.getByText("No players yet")).toBeTruthy();
-    const hint = container.querySelector(".player-list-empty-hint")!;
+    expect(screen.getAllByText("No players yet")).toHaveLength(2);
+    const hint = container.querySelector(".edit-players-empty-hint")!;
     expect(hint.textContent).toBe("Press Add player to add one");
-    expect(hint.querySelector(".player-list-empty-button")!.textContent).toBe("Add player");
+    expect(hint.querySelector(".edit-players-empty-button")!.textContent).toBe("Add player");
 
     await user.click(container.querySelector(".done-button")!);
-    expect(hint.textContent).toBe("Press Edit players to add some");
-    expect(hint.querySelector(".player-list-empty-button")!.textContent).toBe("Edit players");
+    const listHint = container.querySelector(".player-list-empty-hint")!;
+    expect(listHint.textContent).toBe("Press Edit players to add some");
+    expect(listHint.querySelector(".player-list-empty-button")!.textContent).toBe("Edit players");
 
     await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".add-player-button")!);
     expect(container.querySelector(".player-list-empty")).toBeNull();
+    expect(container.querySelector(".edit-players-empty")).toBeNull();
   });
 
   it("copes with there being no players", async () => {
     const user = userEvent.setup();
     const { container } = renderApp("/play/");
-    await user.click(container.querySelector(".done-button, .edit-players-button")!);
+    await user.click(container.querySelector(".edit-players-button")!);
     await user.click(container.querySelector(".delete-button")!);
 
     expect(caption(container)).toBe("Round 1");
@@ -1588,13 +1830,14 @@ describe("labelled buttons", () => {
       expect(screen.getByRole("button", { name: "Next round" })).toBeTruthy();
     });
 
-    it("say what the edit button does now", async () => {
+    it("name the window that the edit button opens, with a Done button to close it", async () => {
       const user = userEvent.setup();
       renderApp("/play/");
 
       await user.click(screen.getByRole("button", { name: "Edit players" }));
-      expect(screen.getByRole("button", { name: "Done" })).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "Edit players" })).toBeNull();
+      expect(screen.getByRole("dialog", { name: "Edit Players" })).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Done" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
     });
 
     it("name the add player button, which only exists for assistive technology in edit mode", async () => {
@@ -1616,10 +1859,6 @@ describe("labelled buttons", () => {
       await user.click(screen.getByRole("tab", { name: "Plot" })); // Not showing a round
       expect(screen.queryByRole("button", { name: "Next round" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Previous round" })).toBeNull();
-
-      await user.click(screen.getByRole("tab", { name: "Keypad" }));
-      await user.click(screen.getByRole("button", { name: "Edit players" })); // Editing, so no rounds
-      expect(screen.queryByRole("button", { name: "Next round" })).toBeNull();
     });
   });
 });
@@ -1627,7 +1866,6 @@ describe("labelled buttons", () => {
 describe("focus after pressing a button", () => {
   // The browser draws a focus ring around a focused button as soon as a key (even Shift, for
   // scrolling sideways) is pressed, so a button that was only clicked must not stay focused.
-  const focusedLabel = () => document.activeElement?.getAttribute("aria-label");
 
   it("is let go of when a button is clicked with the mouse", async () => {
     const user = userEvent.setup();
@@ -1651,7 +1889,7 @@ describe("focus after pressing a button", () => {
     ];
     for (const find of buttons) {
       await user.click(find());
-      expect(document.activeElement).toBe(document.body);
+      expect(document.activeElement instanceof HTMLButtonElement).toBe(false);
     }
   });
 
@@ -1695,7 +1933,6 @@ describe("focus after pressing a button", () => {
     await user.click(name);
 
     expect(document.activeElement).toBe(name);
-    expect(focusedLabel()).toBeNull();
   });
 });
 
@@ -1998,15 +2235,15 @@ describe("letting go of a pinned player by pressing elsewhere", () => {
     const { container } = renderApp("/play/");
     await user.click(screen.getByRole("tab", { name: "Plot" }));
 
-    await user.click(container.querySelector(".game-name-label")!);
+    await user.click(container.querySelector(".plot-area")!);
 
     expect(container.querySelector(".player.pinned")).toBeNull();
   });
 });
 
-describe("flashing the row of a player whose score was updated", () => {
+describe("bouncing the score of a player whose score was updated", () => {
   const flashing = (container: HTMLElement) =>
-    Array.from(container.querySelectorAll(".player")).map(
+    Array.from(container.querySelectorAll(".player .score")).map(
       (row) => row.classList.contains("flash-a") || row.classList.contains("flash-b"),
     );
   const enterScore = (score: string) => {
@@ -2046,7 +2283,7 @@ describe("flashing the row of a player whose score was updated", () => {
 
     it("starts the flash over for a player who scores again, with a different animation", async () => {
       const { container } = await twoPlayers();
-      const first = () => container.querySelectorAll(".player")[0]!;
+      const first = () => container.querySelectorAll(".player .score")[0]!;
 
       enterScore("5"); // Player 1
       expect(first().classList.contains("flash-a")).toBe(true);
@@ -2088,7 +2325,7 @@ describe("flashing the row of a player whose score was updated", () => {
       await user.keyboard("9{Enter}");
 
       expect(before).toEqual([true, true]);
-      const rows = container.querySelectorAll(".player");
+      const rows = container.querySelectorAll(".player .score");
       expect(rows[1]!.classList.contains("flash-b")).toBe(true); // The second time for Player 2
       expect(rows[0]!.classList.contains("flash-a")).toBe(true); // Still the first time for Player 1
     });
@@ -2096,7 +2333,7 @@ describe("flashing the row of a player whose score was updated", () => {
     it("does not when the score is left as it was, or cancelled, or is not a number", async () => {
       const { user, container } = await onTheTable();
       const classes = () =>
-        Array.from(container.querySelectorAll(".player")).map((row) => row.className);
+        Array.from(container.querySelectorAll(".player .score")).map((row) => row.className);
       const before = classes();
 
       await user.click(scoreButton(container, 0));
@@ -2131,7 +2368,7 @@ describe("flashing the row of a player whose score was updated", () => {
 
     it("does not flash when a player is selected by pressing them", async () => {
       const { user, container } = await twoPlayers();
-      await user.click(container.querySelectorAll(".player")[1]!);
+      await user.click(container.querySelectorAll(".player .score")[1]!);
       expect(flashing(container)).toEqual([false, false]);
     });
 
@@ -2159,7 +2396,7 @@ describe("flashing the row of a player whose score was updated", () => {
       await user.click(screen.getByRole("button", { name: "Done" }));
 
       expect(() => enterScore("5")).not.toThrow();
-      expect(container.querySelectorAll(".player")).toHaveLength(0);
+      expect(container.querySelectorAll(".player .score")).toHaveLength(0);
     });
   });
 });

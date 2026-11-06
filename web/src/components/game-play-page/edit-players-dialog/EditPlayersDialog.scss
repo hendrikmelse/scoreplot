@@ -1,0 +1,261 @@
+@use "sass:color";
+@use "../../../Colors.scss" as *;
+@use "../../../Breakpoints.scss" as *;
+
+$row-height: 40px; // Tall enough to tap
+$player-gap: 8px;
+// Empty space above the first player and below the last, inside the scrolling list. A player being
+// dragged can be pulled a little past either end, and the list would cut it off without this.
+$drag-room: 10px;
+$done-color: color.mix($light-elements, $gray-3, 75%); // The same as the Enter key
+
+@keyframes edit-players-backdrop-in {
+  from {
+    background-color: rgba(black, 0);
+  }
+}
+
+@keyframes edit-players-dialog-in {
+  from {
+    opacity: 0;
+  }
+}
+
+// Over the whole page, and under the color picker and the toasts, which have to be seen over it
+.edit-players-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(black, 0.75);
+  animation: edit-players-backdrop-in 0.2s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    .edit-players-dialog {
+      animation: none;
+      transition-duration: 0s;
+    }
+  }
+}
+
+.edit-players-dialog {
+  width: min(440px, calc(100% - 32px));
+  // --shift and --fit-height are set by the component, to keep clear of a phone's keyboard
+  max-height: min(calc(100% - 48px), var(--fit-height, 100%));
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  background-color: $gray-1;
+  border: 1px solid $gray-4;
+  border-radius: 24px;
+  color: $light-elements;
+  animation: edit-players-dialog-in 0.2s ease;
+  transform: translateY(var(--shift, 0px));
+  transition: transform 0.15s ease-out;
+
+  &:focus {
+    outline: none;
+  }
+
+  @include small-screen {
+    max-height: min(calc(100% - 24px), var(--fit-height, 100%));
+    padding: 18px 16px 16px;
+  }
+
+  .edit-players-title {
+    flex: none;
+    margin: 0 0 12px;
+    font-size: 18pt;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  // Scrolls when there are more players than fit
+  .edit-players-list {
+    flex: 0 1 auto;
+    min-height: 0;
+    margin: 0 -8px;
+    padding: $drag-room 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: $gray-5 transparent;
+    display: flex;
+    flex-direction: column;
+    gap: $player-gap;
+  }
+
+  // What the list says when there is nobody in it
+  .edit-players-empty {
+    padding: 16px 0;
+    color: rgba($light-elements, 0.55);
+    text-align: center;
+
+    .edit-players-empty-title {
+      font-size: 16pt;
+      font-weight: bold;
+    }
+
+    .edit-players-empty-hint {
+      margin-top: 6px;
+      font-size: 11pt;
+    }
+
+    .edit-players-empty-button {
+      color: $light-elements;
+      font-weight: bold;
+    }
+  }
+
+  .edit-player {
+    position: relative;
+    flex: none; // Rows keep their height instead of being squashed to fit
+    height: $row-height;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform 150ms ease;
+
+    &.dragging {
+      z-index: 1;
+      background-color: $gray-2;
+      box-shadow: 0 0 6px 0 black;
+      transition: none;
+    }
+  }
+
+  .drag-handle {
+    flex: none;
+    align-self: stretch;
+    width: $row-height;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $light-elements;
+    cursor: grab;
+    touch-action: none; // Or a finger dragging it would scroll the list instead, and cancel the drag
+  }
+
+  .edit-player.dragging .drag-handle {
+    cursor: grabbing;
+  }
+
+  .player-color {
+    flex: none;
+    align-self: stretch;
+    width: $row-height;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .player-name-input {
+    flex: 1;
+    width: 0; // Size comes from flex-grow only, not the input's intrinsic width
+    min-width: 0;
+    height: 32px;
+    padding: 0 8px;
+    background-color: $gray-3;
+    border: 1px solid $gray-5;
+    border-radius: 8px;
+    color: $light-elements;
+    font-family: inherit;
+    font-size: 18pt;
+    font-weight: bold;
+
+    &:focus {
+      outline: none;
+      border-color: $light-elements;
+    }
+  }
+
+  .delete-button {
+    flex: none;
+    align-self: stretch;
+    width: $row-height;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $light-elements;
+    cursor: pointer;
+  }
+
+  .edit-players-footer {
+    flex: none;
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+
+    button {
+      min-height: 44px;
+      padding: 0 20px 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition:
+        transform 60ms ease,
+        background-color 60ms ease,
+        border-color 60ms ease,
+        color 60ms ease;
+
+      &:active {
+        transform: scale(0.94);
+      }
+
+      &:focus-visible {
+        outline: 2px solid $light-elements;
+        outline-offset: 2px;
+      }
+
+      .material-symbols-outlined {
+        font-size: 22px;
+      }
+    }
+
+    // An empty place for another player: a dashed outline that fills in when it is pointed at
+    .add-player-button {
+      background-color: transparent;
+      border: 2px dashed $gray-5;
+      color: rgba($light-elements, 0.75);
+
+      @media (hover: hover) {
+        &:hover {
+          border-color: $light-elements;
+          color: $light-elements;
+        }
+      }
+
+      &:active {
+        border-color: $light-elements;
+        color: $light-elements;
+      }
+    }
+
+    // The way out, so it is as prominent as the Enter key of the keypad
+    .done-button {
+      background-color: $done-color;
+      border: 1px solid $done-color;
+      color: $background;
+
+      @media (hover: hover) {
+        &:hover {
+          filter: brightness(0.94);
+        }
+      }
+
+      &:active {
+        filter: brightness(0.85);
+      }
+    }
+  }
+}

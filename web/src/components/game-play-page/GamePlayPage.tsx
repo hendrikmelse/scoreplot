@@ -3,15 +3,30 @@ import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGame } from "@/GameContext";
-import { FittedText } from "@/components/FittedText";
+import { useToast } from "@/ToastContext";
 import { lastRound } from "@/utils/Scores";
 import { runWithTransition, usePageAppeared } from "@/viewTransition";
+import { EditPlayersDialog } from "./edit-players-dialog/EditPlayersDialog";
 import { EnterScoresComponent } from "./enter-scores-component/EnterScoresComponent";
 import { PlayerListComponent } from "./player-list-component/PlayerListComponent";
 import { PlotScoresComponent } from "./plot-scores-component/PlotScoresComponent";
 import { ScoreTableComponent } from "./score-table-component/ScoreTableComponent";
 import { useKeepAboveKeyboard } from "@/useKeepAboveKeyboard";
 import { FullscreenButton } from "@/components/FullscreenButton";
+
+/** How long a tab takes to slide up over the one before it, or to drop away from in front of one */
+const SLIDE_MS = 250;
+
+/** Whether things are to be moved about, rather than just changed */
+function motionAllowed(): boolean {
+  return (
+    typeof window.matchMedia === "function" &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/** How long the player list takes to change size (a little longer than the stylesheet says) */
+const RESIZE_MS = 300;
 
 type Content = "keypad" | "plot" | "table";
 
@@ -24,16 +39,51 @@ const contentButtons: { content: Content; icon: string; label: string }[] = [
 export function GamePlayPage() {
   const navigate = useNavigate();
   usePageAppeared();
-  // "Start New Game" opens this page already in edit mode so the players can be set up
-  const startInEditMode = (useLocation().state as { newGame?: boolean } | null)?.newGame === true;
+  // "Start New Game" opens this page with the window for editing the players already open, so that
+  // they can be set up
+  const location = useLocation();
+  const startInEditMode = (location.state as { newGame?: boolean } | null)?.newGame === true;
+  // Whether the window opened by itself, for a new game. Kept from then until it is closed, as the
+  // address still says it is a new game for as long as the page is there.
+  const [forNewGame, setForNewGame] = useState(startInEditMode);
+  // And not for as long as the history says so: going back to this page, or reloading it, is not a
+  // new game
+  useEffect(() => {
+    if (startInEditMode) navigate(location.pathname, { replace: true, state: null });
+  }, [startInEditMode, navigate, location.pathname]);
   const { game, updateGame } = useGame();
+  const { dismissAll } = useToast();
   useKeepAboveKeyboard();
+  // What the panel holds. With the list on its own (below), it still holds what it did, out of sight.
   const [currentContent, setCurrentContent] = useState<Content>("keypad");
   // On a stacked layout, the list can grow down over the space of the main panel
   const [listExpanded, setListExpanded] = useState(false);
+  // The tab that is selected, which is none while the list is on its own. That is a state of its own,
+  // before the first tab: it is not the tab that the panel was holding, with the list over it.
+  const tab: Content | null = listExpanded ? null : currentContent;
   const [selectedPlayerIdState, setSelectedPlayerId] = useState("");
   // Continuing a game picks up at its latest round; a new game starts at round 1
   const [currentRound, setCurrentRound] = useState(() => Math.max(1, lastRound(game)));
+  // How the panel is changing, for as long as that takes. The list on its own counts as the first of
+  // the tabs, before the keypad. Going to a tab that is further along, the new one slides up ("up",
+  // over the one it replaces, or "in", from there being none). Going to one before, the old one
+  // drops away ("drop", which uncovers the one it replaced, or "out", which uncovers the list).
+  const [slide, setSlide] = useState<{
+    leaving: Content | null;
+    kind: "up" | "drop" | "in" | "out";
+  } | null>(null);
+  const leavingContent = slide?.leaving ?? null;
+  const slideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(slideTimer.current), []);
+  function startSlide(next: NonNullable<typeof slide>) {
+    setSlide(next);
+    clearTimeout(slideTimer.current);
+    slideTimer.current = setTimeout(() => setSlide(null), SLIDE_MS + 50);
+  }
+  const [resizing, setResizing] = useState(false);
+  const resizeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(resizeTimer.current), []);
+  // Whether the window for editing the players is open
   const [editing, setEditing] = useState(startInEditMode);
   // The plot emphasizes the line of the player the mouse is over in the player list, or failing
   // that, of the one that was tapped (which is the only way to do it without a mouse)
@@ -41,13 +91,6 @@ export function GamePlayPage() {
   const [pinnedPlayerIdState, setPinnedPlayerId] = useState("");
   // How many times each player's row has been made to flash, which the row restarts its flash by
   const [flashCounts, setFlashCounts] = useState<Record<string, number>>({});
-  // The game name is edited on its own, by pressing it, whether or not the players are being edited.
-  // A new game starts with its name being edited, ready to be typed over.
-  const [editingName, setEditingName] = useState(startInEditMode);
-  const nameBeforeEditing = useRef(game.name);
-  // Whether the name should be selected when its text box appears, which is only the first time
-  const selectGameName = useRef(startInEditMode);
-  const gameNameRef = useRef<HTMLDivElement>(null);
   const playerListRef = useRef<HTMLDivElement>(null);
 
   // Fall back to the first player if the selected player doesn't exist (e.g. it was deleted)
@@ -56,7 +99,7 @@ export function GamePlayPage() {
     ? selectedPlayerIdState
     : firstPlayerId;
 
-  const pinnedPlayerId = currentContent === "plot" && !editing ? pinnedPlayerIdState : "";
+  const pinnedPlayerId = tab === "plot" && !editing ? pinnedPlayerIdState : "";
   const highlightedPlayerId = hoveredPlayerId || pinnedPlayerId;
 
   // What the keypad says the score being typed is for
@@ -66,54 +109,14 @@ export function GamePlayPage() {
     ? `${selectedPlayer.playerName.trim() || "Player"} · ${roundName}`
     : roundName;
 
-  // When leaving edit mode, go back to the first player
+  // However the window is closed, go back to the first player. Deletions were meant, so there is no
+  // more need to offer to undo them.
   const exitEditMode = useCallback(() => {
+    dismissAll();
     setEditing(false);
+    setForNewGame(false);
     setSelectedPlayerId(firstPlayerId);
-  }, [firstPlayerId]);
-
-  // Exit edit mode if user clicks anywhere other than the game name or the player list (which has
-  // the buttons for starting and finishing editing in it)
-  useEffect(() => {
-    if (!editing) return;
-
-    function onPointerDown(event: PointerEvent) {
-      const target = event.target as Node;
-      // Pressing a toast (like Undo, after deleting a player) is part of editing, not leaving it
-      if (target instanceof Element && target.closest(".toasts")) return;
-      // Likewise the color picker, which is in the body, not the player list, but is part of editing
-      if (target instanceof Element && target.closest(".color-select-background")) return;
-      if (!gameNameRef.current?.contains(target) && !playerListRef.current?.contains(target)) {
-        exitEditMode();
-      }
-    }
-
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [editing, exitEditMode]);
-
-  // Pressing Enter while editing, with no name being edited, means the editing is done
-  useEffect(() => {
-    if (!editing) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Enter" || event.repeat) return; // Not the Enter of a key held down
-      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-
-      // Where the key was pressed, not where the focus is now: Enter in a name box takes the focus
-      // out of it, and that Enter has done its job by doing that. On a button, Enter presses it.
-      const target = event.target;
-      if (target instanceof Element && target.closest("input, textarea, select, button")) return;
-
-      // The color picker has its own idea of what is going on
-      if (document.querySelector(".color-select-background")) return;
-
-      exitEditMode();
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editing, exitEditMode]);
+  }, [dismissAll, firstPlayerId]);
 
   // Let go of a pinned player when pressing anywhere, other than on a button (a tab, say, which can
   // decide for itself whether to let go) or a player, which pins or unpins them as it is pressed
@@ -146,9 +149,36 @@ export function GamePlayPage() {
   // Pressing a player selects them for entering scores, and on the plot, picks out their line
   function onPlayerPressed(playerId: string) {
     setSelectedPlayerId(playerId);
-    if (currentContent === "plot" && !editing) {
+    if (tab === "plot" && !editing) {
       setPinnedPlayerId(pinnedPlayerId === playerId ? "" : playerId);
     }
+  }
+
+  // The list changes size with the tabs (when stacked), which takes a moment, and for that moment it
+  // is not to have a scroll bar come and go
+  function noteResize() {
+    setResizing(true);
+    clearTimeout(resizeTimer.current);
+    resizeTimer.current = setTimeout(() => setResizing(false), RESIZE_MS);
+  }
+
+  // Where the tabs are along the bottom, with the list above the panel rather than beside it
+  function isStackedLayout() {
+    return window.matchMedia?.("(max-aspect-ratio: 1 / 1)").matches ?? false;
+  }
+
+  // Pressing the tab that is showing, when stacked, drops it and lets the list have its panel's place
+  function pressTab(content: Content) {
+    noteResize();
+    if (content === tab && isStackedLayout()) {
+      setListExpanded(true);
+      // Showing the totals, as for the plot and the table
+      setPinnedPlayerId("");
+      updateGame({ type: "trim_scores" });
+      if (motionAllowed()) startSlide({ leaving: null, kind: "out" });
+      return;
+    }
+    changeContent(content);
   }
 
   function changeContent(content: Content) {
@@ -158,29 +188,38 @@ export function GamePlayPage() {
       // Delete any trailing rounds that are all zeros
       updateGame({ type: "trim_scores" });
     }
-    if (content === "keypad" && currentContent !== "keypad") {
+    if (content === "keypad" && tab !== "keypad") {
       // When we switch to the keypad, automatically go to the next round
       const newRound = lastRound(game) + 1;
       updateGame({ type: "add_round", round: newRound });
       setCurrentRound(newRound);
       setSelectedPlayerId(firstPlayerId);
     }
+    // Only when stacked: beside the list, a tab is just changed
+    if (motionAllowed() && isStackedLayout()) {
+      if (listExpanded) {
+        startSlide({ leaving: null, kind: "in" });
+      } else if (content !== currentContent) {
+        const forward =
+          contentButtons.findIndex((button) => button.content === content) >
+          contentButtons.findIndex((button) => button.content === currentContent);
+        startSlide({ leaving: currentContent, kind: forward ? "up" : "drop" });
+      }
+    }
     setCurrentContent(content);
   }
 
-  function startEditingName() {
-    nameBeforeEditing.current = game.name;
-    selectGameName.current = true;
-    setEditingName(true);
-  }
-
-  function finishEditingName() {
-    setEditingName(false);
-    // A game with no name at all would leave nothing to press to name it again
-    if (game.name.trim() === "") {
-      updateGame({ type: "update_name", newName: nameBeforeEditing.current });
-    }
-  }
+  // The list is only ever on its own when the tabs are along the bottom, so if that stops being so
+  // (the screen is turned, or its window made wider), the tab that the panel holds is selected again
+  useEffect(() => {
+    const query = window.matchMedia?.("(max-aspect-ratio: 1 / 1)");
+    if (!query) return;
+    const onChange = () => {
+      if (!query.matches) setListExpanded(false);
+    };
+    query.addEventListener?.("change", onChange);
+    return () => query.removeEventListener?.("change", onChange);
+  }, []);
 
   // Select the player `offset` places after the selected one, wrapping around the list
   function stepPlayer(offset: number) {
@@ -199,117 +238,14 @@ export function GamePlayPage() {
     setCurrentRound(Math.max(0, currentRound - 1));
   }
 
-  return (
-    <div className={clsx("background game-play-background", { "list-expanded": listExpanded })}>
-      <div className="left-section">
-        <div className="top-left-section">
-          <div className="top-buttons-section">
-            <button
-              className="button-home"
-              aria-label="Home"
-              title="Home"
-              onClick={() => runWithTransition(() => navigate("/"), "to-title")}
-            >
-              <span className="material-symbols-outlined home-chevron" aria-hidden="true">
-                chevron_left
-              </span>
-              <span className="material-symbols-outlined" aria-hidden="true">
-                home
-              </span>
-            </button>
-            <FullscreenButton className="button-fullscreen" />
-          </div>
-          <div className={clsx("game-name-section", { editing: editingName })} ref={gameNameRef}>
-            {editingName ? (
-              <input
-                className="game-name-input"
-                aria-label="Game name"
-                ref={(el) => {
-                  if (el && selectGameName.current) {
-                    selectGameName.current = false;
-                    el.focus();
-                    el.select();
-                  }
-                }}
-                value={game.name}
-                onChange={(e) => updateGame({ type: "update_name", newName: e.target.value })}
-                onBlur={finishEditingName}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                  if (e.key === "Escape") {
-                    updateGame({ type: "update_name", newName: nameBeforeEditing.current });
-                    e.currentTarget.blur();
-                  }
-                }}
-              />
-            ) : (
-              <button
-                className="game-name-label"
-                aria-label={`Rename game, now ${game.name}`}
-                title="Rename game"
-                onClick={startEditingName}
-              >
-                <FittedText className="game-name-text" text={game.name} />
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="bottom-left-section">
-          <div className="player-list-section" ref={playerListRef}>
-            <PlayerListComponent
-              round={currentContent === "keypad" ? currentRound : -1}
-              selectedPlayerId={selectedPlayerId}
-              onSelectPlayer={onPlayerPressed}
-              onHighlightPlayer={setHoveredPlayerId}
-              pinnedPlayerId={pinnedPlayerId}
-              flashCounts={flashCounts}
-              onPrevRound={prevRound}
-              onNextRound={nextRound}
-              editing={editing}
-              onStartEditing={() => setEditing(true)}
-              onFinishEditing={exitEditMode}
-            />
-            {/* Not with the keypad, which needs the list beside it to pick who the score is for */}
-            {currentContent !== "keypad" && (
-              <button
-                className="expand-list-button"
-                aria-label={listExpanded ? "Shrink player list" : "Expand player list"}
-                title={listExpanded ? "Shrink player list" : "Expand player list"}
-                aria-expanded={listExpanded}
-                onClick={() => setListExpanded(!listExpanded)}
-              >
-                {/* Two chevrons, one above the other, as the icon font has no double one */}
-                <span className="double-chevron" aria-hidden="true">
-                  <span className="material-symbols-outlined">chevron_right</span>
-                  <span className="material-symbols-outlined">chevron_right</span>
-                </span>
-              </button>
-            )}
-          </div>
-          <div className="buttons-section" role="tablist" aria-label="View">
-            {contentButtons.map(({ content, icon, label }) => (
-              <button
-                key={content}
-                role="tab"
-                aria-selected={currentContent === content && !listExpanded}
-                title={label}
-                className={clsx({ selected: currentContent === content && !listExpanded })}
-                onClick={() => changeContent(content)}
-              >
-                <span className="material-symbols-outlined" aria-hidden="true">
-                  {icon}
-                </span>
-                <span className="tab-label">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="content-section" role="tabpanel">
-        {currentContent === "keypad" && (
+  function renderContent(content: Content) {
+    switch (content) {
+      case "keypad":
+        return (
           <EnterScoresComponent
             caption={keypadCaption}
-            editing={editing}
+            // Not to take any keys while it is on its way out
+            editing={editing || content !== currentContent || listExpanded}
             onSubmit={(score) => {
               saveScore(score);
               stepPlayer(1);
@@ -319,12 +255,107 @@ export function GamePlayPage() {
             onNextRound={nextRound}
             onPrevRound={prevRound}
           />
-        )}
-        {currentContent === "plot" && (
-          <PlotScoresComponent highlightedPlayerId={highlightedPlayerId} />
-        )}
-        {currentContent === "table" && <ScoreTableComponent onScoreChanged={flashPlayer} />}
+        );
+      case "plot":
+        return <PlotScoresComponent highlightedPlayerId={highlightedPlayerId} />;
+      case "table":
+        return <ScoreTableComponent onScoreChanged={flashPlayer} />;
+    }
+  }
+
+  return (
+    <>
+      <div
+        className={clsx("background game-play-background", {
+          "list-expanded": listExpanded,
+          "table-showing": currentContent === "table",
+          resizing,
+        })}
+      >
+        <div className="left-section">
+          <div className="top-left-section">
+            <div className="top-buttons-section">
+              <button
+                className="button-home"
+                aria-label="Home"
+                title="Home"
+                onClick={() => runWithTransition(() => navigate("/"), "to-title")}
+              >
+                <span className="material-symbols-outlined home-chevron" aria-hidden="true">
+                  chevron_left
+                </span>
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  home
+                </span>
+              </button>
+              <button className="edit-players-button" onClick={() => setEditing(true)}>
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  edit
+                </span>
+                Edit players
+              </button>
+              <FullscreenButton className="button-fullscreen" />
+            </div>
+          </div>
+          <div className="bottom-left-section">
+            <div className="player-list-section" ref={playerListRef}>
+              <PlayerListComponent
+                round={tab === "keypad" ? currentRound : -1}
+                selectedPlayerId={selectedPlayerId}
+                onSelectPlayer={onPlayerPressed}
+                onHighlightPlayer={setHoveredPlayerId}
+                pinnedPlayerId={pinnedPlayerId}
+                flashCounts={flashCounts}
+                onPrevRound={prevRound}
+                onNextRound={nextRound}
+              />
+            </div>
+            <div className="buttons-section" role="tablist" aria-label="View">
+              {contentButtons.map(({ content, icon, label }) => (
+                <button
+                  key={content}
+                  role="tab"
+                  aria-selected={tab === content}
+                  title={label}
+                  className={clsx({ selected: tab === content })}
+                  onClick={() => pressTab(content)}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    {icon}
+                  </span>
+                  <span className="tab-label">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className={clsx("content-section", { sliding: slide !== null })} role="tabpanel">
+          {/* Each has its own size, whatever size the panel is made, so that it slides rather than
+              stretches */}
+          {contentButtons.map(({ content }) =>
+            content === currentContent || content === leavingContent ? (
+              <div
+                key={content}
+                className={clsx("content-inner", {
+                  "is-table": content === "table",
+                  entering:
+                    (slide?.kind === "up" || slide?.kind === "in") && content === currentContent,
+                  dropping:
+                    (slide?.kind === "drop" && content === leavingContent) ||
+                    (slide?.kind === "out" && content === currentContent),
+                  leaving: content === leavingContent,
+                })}
+                inert={content === leavingContent}
+                aria-hidden={content === leavingContent || undefined}
+              >
+                {renderContent(content)}
+              </div>
+            ) : null,
+          )}
+        </div>
       </div>
-    </div>
+      {/* Outside the page, as the page is moved up out of the way of the keyboard, and it is not */}
+      {editing && <EditPlayersDialog onClose={exitEditMode} selectFirstName={forNewGame} />}
+    </>
   );
 }

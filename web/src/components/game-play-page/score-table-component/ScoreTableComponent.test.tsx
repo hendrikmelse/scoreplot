@@ -44,7 +44,7 @@ describe("editing a score in the table", () => {
 
     it("says that scores can be edited", () => {
       renderTable();
-      expect(screen.getByText("Tap a score to edit it")).toBeTruthy();
+      expect(screen.getByText("Click a score to edit it")).toBeTruthy();
     });
 
     it("turns the score into a text box, with the number selected and ready to be typed over", async () => {
@@ -101,7 +101,7 @@ describe("editing a score in the table", () => {
       await user.click(scoreButton("Bo", "round 2"));
 
       await user.keyboard("7");
-      await user.click(screen.getByText("Tap a score to edit it"));
+      await user.click(screen.getByText("Click a score to edit it"));
 
       expect(updateGame).toHaveBeenCalledExactlyOnceWith({
         type: "add_score",
@@ -259,7 +259,7 @@ describe("editing a score in the table", () => {
       await user.click(scoreButton("Ada", "round 1"));
       await user.keyboard("9");
 
-      await user.click(screen.getByText("Tap a score to edit it"));
+      await user.click(screen.getByText("Click a score to edit it"));
 
       expect(document.activeElement).not.toBe(scoreButton("Ada", "round 1"));
     });

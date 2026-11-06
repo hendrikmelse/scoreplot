@@ -2,9 +2,7 @@ import "./TitlePage.scss";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { defaultColors, supportOptions } from "@/config";
-import { isUntouched } from "@/Game";
 import { useGame } from "@/GameContext";
-import { useToast } from "@/ToastContext";
 import { lastRound } from "@/utils/Scores";
 import { runWithTransition, usePageAppeared } from "@/viewTransition";
 import { ScoreLinesBackdrop } from "./ScoreLinesBackdrop";
@@ -18,7 +16,6 @@ function plural(count: number, noun: string): string {
 export function TitlePage() {
   const navigate = useNavigate();
   const { game, updateGame, hasGame } = useGame();
-  const { showToast } = useToast();
   usePageAppeared();
   const [supportOpen, setSupportOpen] = useState(false);
   const supportLinkRef = useRef<HTMLButtonElement>(null);
@@ -31,18 +28,8 @@ export function TitlePage() {
   }
 
   function startNewGame() {
-    const previous = game;
-    const losingSomething = hasGame && !isUntouched(previous);
-
     runWithTransition(() => {
       updateGame({ type: "new_game" });
-      if (losingSomething) {
-        showToast({
-          message: "Started a new game",
-          actionLabel: "Undo",
-          onAction: () => updateGame({ type: "load_game", game: previous }),
-        });
-      }
       navigate("/play", { state: { newGame: true } });
     }, "to-game");
   }
@@ -73,7 +60,6 @@ export function TitlePage() {
             >
               <span className="continue-text">
                 <span className="continue-game-text">Continue Game</span>
-                <span className="continue-game-name">{game.name}</span>
                 <span className="continue-game-details">
                   {plural(game.scorecards.length, "player")} · {plural(lastRound(game), "round")}
                 </span>
